@@ -781,15 +781,25 @@ def train_fl_dqn(agents, envs, fl_rounds, local_episodes, algo='fedavg',
 
     history = {
         'rounds': [],
-        'per_agent': {i: {'msr': [], 'reward': []} for i in range(5)},
+        'per_agent': {i: {'msr': [], 'reward': [], 'fpr': [], 'fnr': []} for i in range(5)},
         'global_msr': [],
+        'global_fpr': [],       # A5: round-drift detection quality (false alarm)
+        'global_fnr': [],       # A5: round-drift detection quality (missed attack)
+        'mean_loss': [],        # A5: convergence signal, to decouple from detection
         'jain_fairness': [],
     }
+
+    # A5 round-drift: directory for per-round global checkpoints
+    round_ckpt_dir = None
+    if phase_dir:
+        round_ckpt_dir = phase_dir / 'round_ckpts'
+        os.makedirs(round_ckpt_dir, exist_ok=True)
 
     for rd in range(fl_rounds):
         # Local training
         client_params_list = []
         round_rewards = []
+        round_losses = []
         for i in range(5):
             for ep in range(local_episodes):
                 state = envs[i].reset()
@@ -799,15 +809,23 @@ def train_fl_dqn(agents, envs, fl_rounds, local_episodes, algo='fedavg',
                     next_state, reward, done, info = envs[i].step(action)
                     agents[i].buffer.push(state, action, reward, next_state, done)
                     if algo == 'fedprox':
-                        agents[i].train_step(global_params=global_params, mu=mu)
+                        loss_val = agents[i].train_step(global_params=global_params, mu=mu)
                     else:
-                        agents[i].train_step()
+                        loss_val = agents[i].train_step()
+                    round_losses.append(loss_val)
                     state = next_state
             agents[i].decay_epsilon()
             client_params_list.append(agents[i].get_params())
 
         # Server aggregation
         global_params = fedavg_aggregate(client_params_list, client_weights)
+
+        # A5 round-drift: persist the aggregated GLOBAL model for this round.
+        # Enables offline re-evaluation of the pure global detector per round
+        # (model convergence vs detection convergence) without retraining.
+        if round_ckpt_dir is not None:
+            torch.save([p.clone() for p in global_params],
+                       round_ckpt_dir / f'global_round_{rd + 1:02d}.pt')
 
         # Distribute with blending
         for i in range(5):
@@ -819,16 +837,25 @@ def train_fl_dqn(agents, envs, fl_rounds, local_episodes, algo='fedavg',
 
         # Evaluate
         msr_list = []
+        fpr_list = []
+        fnr_list = []
         for i in range(5):
             m = evaluate_agent(agents[i], envs[i], n_episodes=3)
             msr_list.append(m['msr'])
+            fpr_list.append(m.get('fpr', float('nan')))
+            fnr_list.append(m.get('fnr', float('nan')))
             history['per_agent'][i]['msr'].append(m['msr'])
             history['per_agent'][i]['reward'].append(m['avg_reward'])
+            history['per_agent'][i]['fpr'].append(m.get('fpr', float('nan')))
+            history['per_agent'][i]['fnr'].append(m.get('fnr', float('nan')))
 
         mean_msr = np.mean(msr_list)
         jfi = compute_jain_fairness(msr_list)
         history['rounds'].append(rd + 1)
         history['global_msr'].append(float(mean_msr))
+        history['global_fpr'].append(float(np.nanmean(fpr_list)))
+        history['global_fnr'].append(float(np.nanmean(fnr_list)))
+        history['mean_loss'].append(float(np.mean(round_losses)) if round_losses else float('nan'))
         history['jain_fairness'].append(float(jfi))
 
         if (rd + 1) % 5 == 0 or rd == 0:

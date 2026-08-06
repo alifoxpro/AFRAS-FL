@@ -1001,6 +1001,9 @@ def train_fl_dqn(agents, envs, fl_rounds, local_episodes, algo='fedavg',
         'rounds': [],
         'per_agent': {str(i): {'msr': [], 'reward': [], 'fpr': [], 'fnr': []} for i in range(5)},
         'global_msr': [],
+        'global_fpr': [],       # A5: round-drift detection quality (false alarm)
+        'global_fnr': [],       # A5: round-drift detection quality (missed attack)
+        'mean_loss': [],        # A5: convergence signal, to decouple from detection
         'jain_fairness': [],
     }
     start_rd = 0
@@ -1016,8 +1019,19 @@ def train_fl_dqn(agents, envs, fl_rounds, local_episodes, algo='fedavg',
                 global_params = torch.load(gp_path, weights_only=False, map_location=DEVICE)
             log(f'      Resuming Phase {phase_letter} from round {start_rd}')
 
+    # A5 round-drift: backfill new history keys for runs resumed from older checkpoints
+    for _k in ('global_fpr', 'global_fnr', 'mean_loss'):
+        history.setdefault(_k, [])
+
+    # A5 round-drift: directory for per-round global checkpoints
+    round_ckpt_dir = None
+    if phase_dir:
+        round_ckpt_dir = phase_dir / 'round_ckpts'
+        os.makedirs(round_ckpt_dir, exist_ok=True)
+
     for rd in range(start_rd, fl_rounds):
         client_params_list = []
+        round_losses = []
         for i in range(5):
             for ep in range(local_episodes):
                 state = envs[i].reset()
@@ -1027,14 +1041,21 @@ def train_fl_dqn(agents, envs, fl_rounds, local_episodes, algo='fedavg',
                     next_state, reward, done, info = envs[i].step(action)
                     agents[i].buffer.push(state, action, reward, next_state, done)
                     if algo == 'fedprox':
-                        agents[i].train_step(global_params=global_params, mu=mu)
+                        loss_val = agents[i].train_step(global_params=global_params, mu=mu)
                     else:
-                        agents[i].train_step()
+                        loss_val = agents[i].train_step()
+                    round_losses.append(loss_val)
                     state = next_state
             agents[i].decay_epsilon()
             client_params_list.append(agents[i].get_params())
 
         global_params = fedavg_aggregate(client_params_list, client_weights)
+
+        # A5 round-drift: persist the aggregated GLOBAL model for this round.
+        if round_ckpt_dir is not None:
+            torch.save([p.clone() for p in global_params],
+                       round_ckpt_dir / f'global_round_{rd + 1:02d}.pt')
+
         for i in range(5):
             local_p = agents[i].get_params()
             blended = blend_params(local_p, global_params, BLEND_ALPHA)
@@ -1042,9 +1063,13 @@ def train_fl_dqn(agents, envs, fl_rounds, local_episodes, algo='fedavg',
             agents[i].target_net.load_state_dict(agents[i].q_net.state_dict())
 
         msr_list = []
+        fpr_list = []
+        fnr_list = []
         for i in range(5):
             m = evaluate_agent(agents[i], envs[i], n_episodes=3)
             msr_list.append(m['msr'])
+            fpr_list.append(m['fpr'])
+            fnr_list.append(m['fnr'])
             history['per_agent'][str(i)]['msr'].append(m['msr'])
             history['per_agent'][str(i)]['reward'].append(m['avg_reward'])
             history['per_agent'][str(i)]['fpr'].append(m['fpr'])
@@ -1054,6 +1079,9 @@ def train_fl_dqn(agents, envs, fl_rounds, local_episodes, algo='fedavg',
         jfi = compute_jain_fairness(msr_list)
         history['rounds'].append(rd + 1)
         history['global_msr'].append(float(mean_msr))
+        history['global_fpr'].append(float(np.nanmean(fpr_list)))
+        history['global_fnr'].append(float(np.nanmean(fnr_list)))
+        history['mean_loss'].append(float(np.mean(round_losses)) if round_losses else float('nan'))
         history['jain_fairness'].append(float(jfi))
 
         if (rd + 1) % 5 == 0 or rd == 0:

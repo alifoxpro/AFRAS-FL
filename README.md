@@ -8,10 +8,16 @@ This repository contains the source code, configuration files, and the
 experimental harness used to produce all results, figures, and tables in
 the paper:
 
-> **Fadel, A. H., Karimpour, J., and Salmanian Kozehkonan, Z.**
-> *"Fuzzy-Augmented Federated Reinforcement Learning for Intrusion
-> Detection in Software-Defined IoT Networks."*
-> Submitted to *IEEE Internet of Things Journal*, 2026.
+> **Fadel, A. H.<sup>⭐</sup>, Karimpour, J., and Salmanian Kozehkonan, Z.**
+> *"Fuzzy-Augmented Reward Shaping for Multi-Objective Deep Reinforcement
+> Learning in Federated SDN-IoT Intrusion Detection."*
+> Resubmitted to *IEEE Internet of Things Journal*, August 2026
+> (original ID: IoT-66079-2026).
+>
+> <sup>⭐</sup> Corresponding author.
+
+**Full manuscript, cover letter, and point-by-point response to reviewers
+are in the [`paper/`](paper/) directory.**
 
 ---
 
@@ -148,7 +154,7 @@ If you use this code, please cite the paper:
   title={Fuzzy-Augmented Federated Reinforcement Learning for Intrusion
          Detection in Software-Defined IoT Networks},
   author={Fadel, Ali Hussein and Karimpour, Jaber and
-          Salmanian Kozehkonan, Zolfegar},
+          Salmanian Kozehkonan, Zolfaghar},
   journal={IEEE Internet of Things Journal},
   year={2026},
   note={Manuscript submitted for publication}
@@ -162,8 +168,9 @@ full text.
 
 ## Contact
 
-* Ali Hussein Fadel — `ali_hussein_fadel@uodiyala.edu.iq`
-* Jaber Karimpour — `karimpour@tabrizu.ac.ir`
+* Ali Hussein Fadel (corresponding) — `ali_hussein_fadel@uodiyala.edu.iq` — ORCID: [0000-0003-1360-130X](https://orcid.org/0000-0003-1360-130X)
+* Jaber Karimpour — `karimpour@tabrizu.ac.ir` — ORCID: [0000-0001-6193-3240](https://orcid.org/0000-0001-6193-3240)
+* Zolfaghar Salmanian Kozehkonan — `salmanian@tabrizu.ac.ir` — ORCID: [0000-0002-1019-4123](https://orcid.org/0000-0002-1019-4123)
 
 For questions about the experiments, please open an issue or contact
 the corresponding authors.

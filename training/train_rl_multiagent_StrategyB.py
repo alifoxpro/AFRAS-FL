@@ -1751,6 +1751,7 @@ def train_fl_mosar(agents, envs, fl_rounds, local_episodes, algo='fedavg',
         'rounds': [],
         'per_agent': {str(i): {'msr': [], 'reward': [], 'fpr': [], 'fnr': []} for i in range(5)},
         'global_msr': [], 'jain_fairness': [],
+        'global_fpr': [], 'global_fnr': [], 'mean_loss': [],   # A5 round-drift
     }
     start_rd = 0
     if phase_dir:
@@ -1762,8 +1763,17 @@ def train_fl_mosar(agents, envs, fl_rounds, local_episodes, algo='fedavg',
                 global_params = torch.load(gp_path, weights_only=False, map_location=DEVICE)
             log(f'      Resuming Phase B{phase_num} from round {start_rd}')
 
+    # A5 round-drift: backfill keys (resumed runs) + per-round checkpoint dir
+    for _k in ('global_fpr', 'global_fnr', 'mean_loss'):
+        history.setdefault(_k, [])
+    round_ckpt_dir = None
+    if phase_dir:
+        round_ckpt_dir = phase_dir / 'round_ckpts'
+        os.makedirs(round_ckpt_dir, exist_ok=True)
+
     for rd in range(start_rd, fl_rounds):
         client_params_list = []
+        round_losses = []
         for i in range(5):
             for ep in range(local_episodes):
                 state = envs[i].reset()
@@ -1774,14 +1784,21 @@ def train_fl_mosar(agents, envs, fl_rounds, local_episodes, algo='fedavg',
                     next_state, reward, done, info = envs[i].step(action, q_values=q_values)
                     agents[i].buffer.push(state, action, reward, next_state, done)
                     if algo == 'fedprox':
-                        agents[i].train_step(global_params=global_params, mu=mu)
+                        loss_val = agents[i].train_step(global_params=global_params, mu=mu)
                     else:
-                        agents[i].train_step()
+                        loss_val = agents[i].train_step()
+                    round_losses.append(loss_val)
                     state = next_state
             agents[i].decay_epsilon()
             client_params_list.append(agents[i].get_params())
 
         global_params = fedavg_aggregate(client_params_list, client_weights)
+
+        # A5 round-drift: persist the aggregated GLOBAL model for this round.
+        if round_ckpt_dir is not None:
+            torch.save([p.clone() for p in global_params],
+                       round_ckpt_dir / f'global_round_{rd + 1:02d}.pt')
+
         for i in range(5):
             local_p = agents[i].get_params()
             blended = blend_params(local_p, global_params, BLEND_ALPHA)
@@ -1789,9 +1806,13 @@ def train_fl_mosar(agents, envs, fl_rounds, local_episodes, algo='fedavg',
             agents[i].target_net.load_state_dict(agents[i].q_net.state_dict())
 
         msr_list = []
+        fpr_list = []
+        fnr_list = []
         for i in range(5):
             m = evaluate_agent(agents[i], envs[i], n_episodes=3)
             msr_list.append(m['msr'])
+            fpr_list.append(m['fpr'])
+            fnr_list.append(m['fnr'])
             history['per_agent'][str(i)]['msr'].append(m['msr'])
             history['per_agent'][str(i)]['reward'].append(m['avg_reward'])
             history['per_agent'][str(i)]['fpr'].append(m['fpr'])
@@ -1802,6 +1823,9 @@ def train_fl_mosar(agents, envs, fl_rounds, local_episodes, algo='fedavg',
         history['rounds'].append(rd + 1)
         history['global_msr'].append(float(mean_msr))
         history['jain_fairness'].append(float(jfi))
+        history['global_fpr'].append(float(np.nanmean(fpr_list)))
+        history['global_fnr'].append(float(np.nanmean(fnr_list)))
+        history['mean_loss'].append(float(np.mean(round_losses)) if round_losses else float('nan'))
 
         if (rd + 1) % 5 == 0 or rd == 0:
             log(f'    Round {rd+1:2d}/{fl_rounds}: MSR={mean_msr:.4f} '
@@ -1880,6 +1904,7 @@ def train_fuzzy_augmented(agents, envs, fl_rounds, local_episodes, mu=FEDPROX_MU
                                 'fuzzy_match_rate': []} for i in range(5)},
         'global_msr': [], 'jain_fairness': [],
         'fuzzy_reward_avg': [],
+        'global_fpr': [], 'global_fnr': [], 'mean_loss': [],   # A5 round-drift
     }
     start_rd = 0
     if phase_dir:
@@ -1891,9 +1916,18 @@ def train_fuzzy_augmented(agents, envs, fl_rounds, local_episodes, mu=FEDPROX_MU
                 global_params = torch.load(gp_path, weights_only=False, map_location=DEVICE)
             log(f'      Resuming Phase B4 from round {start_rd}')
 
+    # A5 round-drift: backfill keys (resumed runs) + per-round checkpoint dir
+    for _k in ('global_fpr', 'global_fnr', 'mean_loss'):
+        history.setdefault(_k, [])
+    round_ckpt_dir = None
+    if phase_dir:
+        round_ckpt_dir = phase_dir / 'round_ckpts'
+        os.makedirs(round_ckpt_dir, exist_ok=True)
+
     for rd in range(start_rd, fl_rounds):
         client_params_list = []
         round_fuzzy_rewards = []
+        round_losses = []
 
         for i in range(5):
             fuzzy_matches, fuzzy_total = 0, 0
@@ -1905,7 +1939,8 @@ def train_fuzzy_augmented(agents, envs, fl_rounds, local_episodes, mu=FEDPROX_MU
                     q_values = agents[i].get_q_values(state)
                     next_state, reward, done, info = envs[i].step(action, q_values=q_values)
                     agents[i].buffer.push(state, action, reward, next_state, done)
-                    agents[i].train_step(global_params=global_params, mu=mu)
+                    loss_val = agents[i].train_step(global_params=global_params, mu=mu)
+                    round_losses.append(loss_val)
 
                     # Track fuzzy agreement
                     comp = info.get('components', {})
@@ -1921,6 +1956,12 @@ def train_fuzzy_augmented(agents, envs, fl_rounds, local_episodes, mu=FEDPROX_MU
                 fuzzy_matches / max(fuzzy_total, 1))
 
         global_params = fedavg_aggregate(client_params_list, client_weights)
+
+        # A5 round-drift: persist the aggregated GLOBAL model for this round.
+        if round_ckpt_dir is not None:
+            torch.save([p.clone() for p in global_params],
+                       round_ckpt_dir / f'global_round_{rd + 1:02d}.pt')
+
         for i in range(5):
             local_p = agents[i].get_params()
             blended = blend_params(local_p, global_params, BLEND_ALPHA)
@@ -1928,9 +1969,13 @@ def train_fuzzy_augmented(agents, envs, fl_rounds, local_episodes, mu=FEDPROX_MU
             agents[i].target_net.load_state_dict(agents[i].q_net.state_dict())
 
         msr_list = []
+        fpr_list = []
+        fnr_list = []
         for i in range(5):
             m = evaluate_agent(agents[i], envs[i], n_episodes=3)
             msr_list.append(m['msr'])
+            fpr_list.append(m['fpr'])
+            fnr_list.append(m['fnr'])
             history['per_agent'][str(i)]['msr'].append(m['msr'])
             history['per_agent'][str(i)]['reward'].append(m['avg_reward'])
             history['per_agent'][str(i)]['fpr'].append(m['fpr'])
@@ -1942,6 +1987,9 @@ def train_fuzzy_augmented(agents, envs, fl_rounds, local_episodes, mu=FEDPROX_MU
         history['global_msr'].append(float(mean_msr))
         history['jain_fairness'].append(float(jfi))
         history['fuzzy_reward_avg'].append(float(np.mean(round_fuzzy_rewards)))
+        history['global_fpr'].append(float(np.nanmean(fpr_list)))
+        history['global_fnr'].append(float(np.nanmean(fnr_list)))
+        history['mean_loss'].append(float(np.mean(round_losses)) if round_losses else float('nan'))
 
         if (rd + 1) % 5 == 0 or rd == 0:
             avg_fmr = np.mean([history['per_agent'][str(i)]['fuzzy_match_rate'][-1] for i in range(5)])
@@ -2171,6 +2219,7 @@ def train_dataset(dataset_key):
             fuzzy_engine=fuzzy_engines[link_name],
             use_mosar=True,
             use_fuzzy_reward=False,  # Will enable in Phase B4
+            max_steps=MAX_STEPS_PER_EPISODE,
         )
         envs.append(env)
         log(f'      Env {link_name}: {env.n_windows} windows, DQN: {agents[i].n_params} params')
@@ -2389,14 +2438,32 @@ def main():
                         help='Suffix appended to results_StrategyB folder '
                              '(e.g. "_lam0.10"). Use a leading underscore to '
                              'keep the default folder untouched.')
+    parser.add_argument('--seed', type=int, default=None,
+                        help='Override the training seed (default 42). Used by '
+                             'the multi-seed replication study.')
+    parser.add_argument('--max-steps', type=int, default=None,
+                        help='Override MAX_STEPS_PER_EPISODE (default 5000). Used to speed up multi-seed runs.')
     args = parser.parse_args()
 
     # CLI overrides take precedence over environment variables
-    global LAMBDA_FUZZY, MU_LINK, RESULTS_BASE
+    global LAMBDA_FUZZY, MU_LINK, RESULTS_BASE, SEED, MAX_STEPS_PER_EPISODE
     if args.lambda_fuzzy is not None:
         LAMBDA_FUZZY = float(args.lambda_fuzzy)
     if args.mu_link is not None:
         MU_LINK = float(args.mu_link)
+    if args.max_steps is not None:
+        MAX_STEPS_PER_EPISODE = int(args.max_steps)
+        log(f'  MAX_STEPS_PER_EPISODE overridden to {MAX_STEPS_PER_EPISODE}')
+    if args.seed is not None:
+        SEED = int(args.seed)
+        # override the imported constant everywhere
+        import train_isolated as _ti
+        _ti.SEED = SEED
+        import random as _rnd, numpy as _np
+        _rnd.seed(SEED); _np.random.seed(SEED)
+        import torch as _t
+        _t.manual_seed(SEED)
+        if _t.cuda.is_available(): _t.cuda.manual_seed_all(SEED)
     if args.suffix:
         RESULTS_BASE = PROJECT / 'experiments' / f'results_StrategyB{args.suffix}'
 
