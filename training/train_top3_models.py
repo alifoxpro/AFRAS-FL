@@ -48,7 +48,7 @@ from torch.utils.data import Dataset, DataLoader
 # ============================================================================
 # Configuration
 # ============================================================================
-PROJECT = Path(__file__).resolve().parent.parent.parent
+PROJECT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT / 'data'
 LOG_FILE = PROJECT / "experiments" / "results" / "stage3_progress.log"
 CHARTS_DIR = PROJECT / "experiments" / "results" / "charts" / "stage3"

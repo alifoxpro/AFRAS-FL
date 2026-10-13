@@ -56,7 +56,7 @@ from train_isolated import (
 # ============================================================================
 # Configuration
 # ============================================================================
-PROJECT = Path(__file__).resolve().parent.parent.parent
+PROJECT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT / 'data'
 RESULTS_BASE = PROJECT / 'experiments' / 'results' / 'phase4_rl'
 

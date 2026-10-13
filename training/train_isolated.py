@@ -17,7 +17,7 @@ Usage:
 import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
-import sys, io, json, time, warnings, math, argparse, gc
+import sys, io, json, time, warnings, math, argparse, gc, random
 from pathlib import Path
 from collections import Counter
 
@@ -52,7 +52,7 @@ from torch.utils.data import Dataset, DataLoader
 # ============================================================================
 # Configuration
 # ============================================================================
-PROJECT = Path(__file__).resolve().parent.parent.parent
+PROJECT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT / 'data'
 
 SEED = 42
@@ -180,6 +180,7 @@ def is_completed(state, link_name, variant_name):
 # Reproducibility
 # ============================================================================
 def seed_everything(seed=SEED):
+    random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)

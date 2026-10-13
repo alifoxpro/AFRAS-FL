@@ -22,8 +22,8 @@ Split into batches; each cell writes its own results folder.
 import argparse, subprocess, sys, time
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
-TRAIN = REPO / 'scripts' / 'training' / 'train_rl_multiagent_StrategyB.py'
+REPO = Path(__file__).resolve().parent
+TRAIN = REPO / 'training' / 'train_rl_multiagent_StrategyB.py'
 PY = sys.executable
 
 # Cell = (label, lambda, mu, extra flags)

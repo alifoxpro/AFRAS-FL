@@ -93,7 +93,7 @@ from train_isolated import (
 # ============================================================================
 # Configuration
 # ============================================================================
-PROJECT = Path(__file__).resolve().parent.parent.parent
+PROJECT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT / 'data'
 # RESULTS_BASE can be overridden with the RESULTS_SUFFIX env var so that
 # ablation runs write to e.g. results_StrategyB_lam0.10 without overwriting
@@ -2076,6 +2076,23 @@ def train_dataset(dataset_key):
     log(f'  Features: {len(feature_order)}')
 
     progress = load_progress(progress_file)
+    label_provenance_path = ds_dir / 'label_provenance.json'
+    expected_label_provenance = {
+        'dqn_label_source': 'dataset_severity_end_of_window',
+        'revision': 'afras-fl-local-fixpack-v1',
+    }
+    if progress.get('completed'):
+        if not label_provenance_path.exists():
+            raise RuntimeError(
+                'Existing training progress has unknown label provenance. '
+                'Use a fresh --suffix to avoid mixing old results/checkpoints.'
+            )
+        with open(label_provenance_path, encoding='utf-8') as _fp:
+            if json.load(_fp) != expected_label_provenance:
+                raise RuntimeError('Incompatible label provenance. Use a fresh --suffix.')
+    else:
+        with open(label_provenance_path, 'w', encoding='utf-8') as _fp:
+            json.dump(expected_label_provenance, _fp, indent=2)
 
     # ================================================================
     # Step 1: Load Data & Mamba Pre-computation
@@ -2091,6 +2108,7 @@ def train_dataset(dataset_key):
 
     all_X, all_y, all_softmax, all_embed_pca, all_envs = [], [], [], [], []
     all_X_windows = []
+    all_y_windows = []  # ground-truth severity from dataset windows
 
     for i, link_name in enumerate(LINK_NAMES):
         log(f'  [{i+1}/5] {link_name}')
@@ -2100,6 +2118,7 @@ def train_dataset(dataset_key):
         X_w, y_w = create_windows(X, y, WINDOW_SIZE, STRIDE)
         log(f'      Windows: {fmt(len(y_w))}')
         all_X_windows.append(X_w)
+        all_y_windows.append(y_w)
 
         # Load/compute Mamba outputs
         softmax_cache = mamba_cache_dir / f'{link_name}_softmax.npy'
@@ -2129,6 +2148,12 @@ def train_dataset(dataset_key):
             np.save(softmax_cache, softmax)
             np.save(embed_cache, embed_raw)
             del extractor; gc.collect()
+
+        if len(softmax) != len(y_w) or len(embed_raw) != len(y_w):
+            raise ValueError(
+                f'Mamba cache length mismatch for {dataset_key}/{link_name}: '
+                f'labels={len(y_w)}, softmax={len(softmax)}, embeddings={len(embed_raw)}'
+            )
 
         extractor_pca = MambaEmbeddingExtractor.__new__(MambaEmbeddingExtractor)
         extractor_pca.pca = PCA(n_components=16, random_state=SEED)
@@ -2211,7 +2236,7 @@ def train_dataset(dataset_key):
     for i, link_name in enumerate(LINK_NAMES):
         env = SDNEnvironmentB(
             X_windows=all_X_windows[i],
-            y_windows=np.array([all_softmax[i][j].argmax() for j in range(len(all_softmax[i]))], dtype=np.int64),
+            y_windows=all_y_windows[i],  # dataset severity label, not Mamba argmax
             mamba_softmax=all_softmax[i],
             mamba_embed_pca=all_embed_pca[i],
             link_idx=i,
@@ -2225,7 +2250,7 @@ def train_dataset(dataset_key):
         log(f'      Env {link_name}: {env.n_windows} windows, DQN: {agents[i].n_params} params')
 
     # Free windowed data
-    del all_X_windows; gc.collect()
+    del all_X_windows, all_y_windows; gc.collect()
 
     # ================================================================
     # Step 3: Phase B1 — Independent DQN + MOSAR
@@ -2468,6 +2493,13 @@ def main():
         RESULTS_BASE = PROJECT / 'experiments' / f'results_StrategyB{args.suffix}'
 
     log('=' * 70)
+    if abs(MU_LINK) > 1e-12:
+        raise RuntimeError(
+            'R_link is currently inactive: _get_neighbor_actions() returns None. '
+            'Use --mu-link 0 for a transparently disabled-link pilot. '
+            'Implement and test synchronized neighbor-action collection before '
+            'reproducing a nonzero-mu experiment.'
+        )
     log(f'  Ablation config: LAMBDA_FUZZY={LAMBDA_FUZZY}, MU_LINK={MU_LINK}')
     log(f'  Results dir    : {RESULTS_BASE}')
     log('=' * 70)

@@ -16,7 +16,7 @@ import numpy as np
 from pathlib import Path
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parent
 LINKS = ['Link_1_Core','Link_2_Aggregation_L','Link_3_Aggregation_R','Link_4_Edge_L','Link_5_Edge_R']
 
 SEED_DIRS = {

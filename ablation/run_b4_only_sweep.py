@@ -34,8 +34,8 @@ from pathlib import Path
 
 import numpy as np
 
-PROJECT = Path(__file__).resolve().parent.parent.parent
-SCRIPT = PROJECT / 'scripts' / 'training' / 'train_rl_multiagent_StrategyB.py'
+PROJECT = Path(__file__).resolve().parent.parent
+SCRIPT = PROJECT / 'training' / 'train_rl_multiagent_StrategyB.py'
 CANONICAL = PROJECT / 'experiments' / 'results_StrategyB'
 
 # Reduced training config for the B4-only re-run. These only affect B4
