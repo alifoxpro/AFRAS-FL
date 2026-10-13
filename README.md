@@ -20,6 +20,12 @@ The new strict protocol **rejects** historically globally selected
 candidate pool, a TRAIN-only feature ranking, and pinned split/source hashes.
 See [`docs/PREPROCESSING_LEAKAGE_AUDIT.md`](docs/PREPROCESSING_LEAKAGE_AUDIT.md).
 
+A **new**, streaming and fail-closed replacement for missing historical data
+harmonization is available at [`scripts/data/unify_features_v2.py`](scripts/data/unify_features_v2.py).
+See [`docs/UNIFY_FEATURES_V2_PROTOCOL.md`](docs/UNIFY_FEATURES_V2_PROTOCOL.md)
+for original CSV, explicit mapping and five-link identity requirements. It
+cannot recover old unpublished preprocessing decisions or train on absent data.
+
 **Do not** relabel the new contextual-bandit experiments as the original
 federated DRL/PBRS results or call severity-based errors validated binary
 IDS FPR/FNR without original attack/benign annotations.
