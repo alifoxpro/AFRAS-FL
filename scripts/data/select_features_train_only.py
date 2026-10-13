@@ -38,8 +38,11 @@ def candidate_list(path):
     if not isinstance(value.get("review_reference"), str) or not value["review_reference"].strip():
         raise ValueError("Candidate features need review_reference / source schema provenance")
     features = value.get("candidate_features")
-    if not isinstance(features, list) or len(features) < 14 or len(set(map(str, features))) != len(features):
-        raise ValueError("At least 14 unique candidate feature names required")
+    # A full candidate pool MUST exceed the selected 14 features. Otherwise
+    # the selector could merely launder a historically preselected 14-column
+    # dataset and falsely claim TRAIN-only feature discovery.
+    if not isinstance(features, list) or len(features) < 15 or len(set(map(str, features))) != len(features):
+        raise ValueError("At least 15 preselection-free candidate feature names required")
     for name in features:
         if not isinstance(name, str) or not name or REJECT.search(name):
             raise ValueError(f"Forbidden target/identifier or invalid candidate feature: {name!r}")
