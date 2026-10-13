@@ -4,6 +4,27 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
 
+## Research reproducibility and leakage audit (review branch)
+
+**Important:** The historical README describes an IEEE IoT-J manuscript
+and lists `data/unify_features.py`, but this raw-data harmonization file,
+original source datasets, processed 5-link CSVs, raw split manifests and
+original-run checkpoints are not present in the public repository.
+Consequently the archived manuscript numbers are **not reproduced or
+verified** by the new unit tests.
+
+The historical `analysis/xai_unified_selection.py` uses sampled unified
+data for feature ranking before an independent TEST partition is established.
+The new strict protocol **rejects** historically globally selected
+`unified_selected_14.json`, requiring a >14-column independently reviewed
+candidate pool, a TRAIN-only feature ranking, and pinned split/source hashes.
+See [`docs/PREPROCESSING_LEAKAGE_AUDIT.md`](docs/PREPROCESSING_LEAKAGE_AUDIT.md).
+
+**Do not** relabel the new contextual-bandit experiments as the original
+federated DRL/PBRS results or call severity-based errors validated binary
+IDS FPR/FNR without original attack/benign annotations.
+
+---
 This repository contains the source code, configuration files, and the
 experimental harness used to produce all results, figures, and tables in
 the paper:
