@@ -9,6 +9,7 @@ import math
 from pathlib import Path
 
 from scripts.data.label_evidence import validate_evidence_file
+from scripts.data.feature_provenance import validate_train_feature_selection
 
 STAGE3_SCHEMA = "strict-stage3-train-val-only-v1"
 STAGE4_SCHEMA = "strict-fed-contextual-bandit-v1"
@@ -87,6 +88,9 @@ def validate_frozen_run(dataset, seed, split_root, stage3_root, stage4_root, fea
     _require(isinstance(features, list) and len(features) == 14 and
              all(isinstance(f, str) and f and f != "severity" for f in features) and
              len(set(features)) == len(features), "Expected 14 valid unique features")
+    verified_features = validate_train_feature_selection(
+        feature_path, split_root, dataset)
+    _require(verified_features == features, "Source TRAIN feature-list mismatch")
     feature_sha = sha256_file(feature_path)
 
     phases = run.get("phases")
