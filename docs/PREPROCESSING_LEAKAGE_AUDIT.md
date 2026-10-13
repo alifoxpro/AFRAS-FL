@@ -33,10 +33,18 @@ have been audited. Therefore we DO NOT certify the paper leakage-free.
    the public repository. Exact source->severity/feature lineage, any
    pre-split imputation, and exact duplicate flows remain unverified.
 
+
+IMPORTANT: The default historical input path `data/unified_14features_5links/`
+contains already-selected 14-feature CSVs. Splitting these records alone
+CANNOT undo prior supervised feature-selection leakage. The TRAIN-only
+selector deliberately requires at least 15 candidate columns and will
+fail on the old preselected 14-column data. Regenerate a complete
+unselected candidate pool from authenticated upstream raw sources first.
+
 ## Required reviewed candidate list
 
 After confirming original dataset schemas, independently review and
-provide a JSON FILE of at least 14 common numeric feature names:
+provide a JSON FILE of at least 15 previously UNSELECTED common numeric feature names:
 
     {
       "schema": "afras-candidate-feature-review-v1",
@@ -57,7 +65,7 @@ this is not proof that other features are nonleaking.
    and genuine group/session identifiers.
 2. Run record-level split before fitting transforms or windows:
 
-    python scripts/data/split_records_leakfree.py --datasets ciciot2023 diad2024 --group-column SESSION_ID --time-column TIMESTAMP_COLUMN --window-size 20
+    python scripts/data/split_records_leakfree.py --input-root /verified/UNSELECTED_FULL_CANDIDATE_5LINK_CSVS --output-root data/full_candidate_strict_split --datasets ciciot2023 diad2024 --group-column SESSION_ID --time-column TIMESTAMP_COLUMN --window-size 20
 
    Replace SESSION_ID and TIMESTAMP_COLUMN with ACTUAL verified names.
    The splitter now checks each declared group ACROSS ALL FIVE CLIENT
@@ -66,7 +74,7 @@ this is not proof that other features are nonleaking.
    session IDs nor cross-dataset duplicates.
 3. Run NEW TRAIN-only feature selection, after split:
 
-    python scripts/data/select_features_train_only.py --candidate-json /reviewed/candidate_features.json --datasets ciciot2023 diad2024 --n-features 14
+    python scripts/data/select_features_train_only.py --split-root data/full_candidate_strict_split --candidate-json /reviewed/candidate_features.json --datasets ciciot2023 diad2024 --n-features 14
 
    The output `data/selected_14_train_only.json` contains the TRAIN-only
    supervised ANOVA ranking, per-dataset ranks, source split-manifest
@@ -74,12 +82,12 @@ this is not proof that other features are nonleaking.
    It never reads VAL or TEST CSVs. This is not a SHAP/LIME re-run.
 4. Train Stage 3 from TRAIN and select by VAL:
 
-    python scripts/training/train_mamba_strict.py --dataset ciciot2023 --seed 42
+    python scripts/training/train_mamba_strict.py --split-root data/full_candidate_strict_split --dataset ciciot2023 --seed 42
 
 5. Train Stage 4 with the same pinned features, TRAIN-only rules and
    validation-only selected policies:
 
-    python scripts/training/train_federated_strict.py --dataset ciciot2023 --mu-link 0 --seed 42
+    python scripts/training/train_federated_strict.py --split-root data/full_candidate_strict_split --dataset ciciot2023 --mu-link 0 --seed 42
 
 6. Before a one-time TEST, independently audit group/session disjointness,
    missing preprocessing transformations, raw attack/benign annotations
