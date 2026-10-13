@@ -18,6 +18,6 @@ jobs:
         with:
           python-version: '3.11'
       - name: Validate Python source
-        run: python -m py_compile scripts/data/split_records_leakfree.py tests/test_split_records.py
+        run: python -m py_compile scripts/data/split_records_leakfree.py scripts/data/strict_manifest.py scripts/training/train_mamba_strict.py tests/test_split_records.py tests/test_strict_manifest.py
       - name: Run synthetic partition tests
-        run: python -m unittest discover -s tests -p 'test_split_records.py' -v
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
