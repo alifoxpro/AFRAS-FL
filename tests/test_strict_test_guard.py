@@ -54,13 +54,14 @@ def fixture(home):
     }))
     teacher_map, scaler_map, provenance_map = {}, {}, {}
     for link, entry in split["links"].items():
-        d = stage3_root / ds / link
+        d = stage3_root / ds / f"seed_{seed}" / link
         d.mkdir(parents=True)
         checkpoint, scaler = d / "mamba_val_best.pt", d / "train_fitted_scaler.npz"
         checkpoint.write_bytes(("checkpoint " + link).encode())
         scaler.write_bytes(("scaler " + link).encode())
         p = {
             "protocol": guard.STAGE3_SCHEMA,
+            "seed": seed,
             "dataset": ds, "link": link,
             "test_access": "NONE — not accessed",
             "features": features, "feature_list_sha256": guard.sha256_file(feature_json),
@@ -134,7 +135,7 @@ class FrozenTESTGuards(unittest.TestCase):
     def test_detects_modified_teacher_scaler(self):
         with tempfile.TemporaryDirectory() as t:
             f = fixture(Path(t))
-            (f[3] / f[0] / "Link_2_Core" / "train_fitted_scaler.npz").write_bytes(b"altered")
+            (f[3] / f[0] / "seed_42" / "Link_2_Core" / "train_fitted_scaler.npz").write_bytes(b"altered")
             with self.assertRaisesRegex(ValueError, "Train-fitted scaler changed"):
                 self.validate(f)
 
@@ -167,7 +168,7 @@ class FrozenTESTGuards(unittest.TestCase):
     def test_detects_modified_stage3_provenance(self):
         with tempfile.TemporaryDirectory() as t:
             f = fixture(Path(t))
-            p = f[3] / f[0] / "Link_3_Core" / "provenance.json"
+            p = f[3] / f[0] / "seed_42" / "Link_3_Core" / "provenance.json"
             p.write_text(p.read_text() + " ")
             with self.assertRaisesRegex(ValueError, "Stage 3 provenance changed"):
                 self.validate(f)
