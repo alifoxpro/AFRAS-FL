@@ -8,6 +8,8 @@ import json
 import math
 from pathlib import Path
 
+from scripts.data.label_evidence import validate_evidence_file
+
 STAGE3_SCHEMA = "strict-stage3-train-val-only-v1"
 STAGE4_SCHEMA = "strict-fed-contextual-bandit-v1"
 SPLIT_SCHEMA = "afras-fl-strict-ordered-split-v1"
@@ -31,7 +33,8 @@ def _require(ok, reason):
         raise ValueError(reason)
 
 
-def validate_frozen_run(dataset, seed, split_root, stage3_root, stage4_root, feature_json):
+def validate_frozen_run(dataset, seed, split_root, stage3_root, stage4_root, feature_json,
+                        label_evidence_path=None):
     """Return verified file paths and frozen phase names; only TEST CSVs opened."""
     split_dir = Path(split_root).resolve() / dataset
     stage4_dir = Path(stage4_root).resolve() / dataset / f"seed_{seed}"
@@ -65,6 +68,18 @@ def validate_frozen_run(dataset, seed, split_root, stage3_root, stage4_root, fea
              window == manifest.get("window_size"), "Invalid window/stride")
     _require(settings.get("mu_link") in (0, 0.0),
              "Nonzero neighbor-reward configuration is unsupported")
+    registered_sha = run.get("raw_label_evidence_sha256")
+    if registered_sha is None:
+        _require(label_evidence_path is None,
+                 "Raw-label evidence must be registered BEFORE training, not added at TEST")
+        label_evidence = None
+    else:
+        _require(label_evidence_path is not None,
+                 "Missing pre-registered raw-label evidence for frozen TEST")
+        _require(sha256_file(label_evidence_path) == registered_sha,
+                 "Raw-label evidence changed after Stage 4")
+        label_evidence = validate_evidence_file(label_evidence_path, dataset)
+
 
     feature_path = Path(feature_json).resolve()
     contents = json.loads(feature_path.read_text(encoding="utf-8"))
@@ -154,4 +169,6 @@ def validate_frozen_run(dataset, seed, split_root, stage3_root, stage4_root, fea
         "split_manifest_sha256": sha256_file(split_file),
         "stage4_provenance_sha256": sha256_file(provenance_file),
         "phases": models, "clients": clients,
+        "raw_label_evidence": label_evidence,
+        "raw_label_evidence_sha256": registered_sha,
     }
