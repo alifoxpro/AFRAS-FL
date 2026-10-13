@@ -122,9 +122,11 @@ def validate_frozen_run(dataset, seed, split_root, stage3_root, stage4_root, fea
     for link, meta in sorted(manifest_links.items()):
         _require(isinstance(link, str) and link.startswith("Link_") and
                  link.replace("_", "").isalnum(), "Unsafe client label")
-        stage3_dir = Path(stage3_root).resolve() / dataset / link
+        stage3_dir = Path(stage3_root).resolve() / dataset / f"seed_{seed}" / link
         teacher_meta_path = stage3_dir / "provenance.json"
         teacher_meta = _read(teacher_meta_path)
+        _require(teacher_meta.get("seed") == seed,
+                 f"Stage 3 teacher seed mismatch for {link}")
         _require(teacher_meta.get("protocol") == STAGE3_SCHEMA and
                  teacher_meta.get("dataset") == dataset and teacher_meta.get("link") == link,
                  f"Invalid Stage 3 provenance for {link}")
