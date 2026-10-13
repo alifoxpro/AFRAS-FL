@@ -107,6 +107,10 @@ def load_client(dataset, link, paths, feature_names, args, out_root):
         raise FileNotFoundError("Missing strict Stage 3 teacher/scaler")
     train_pair, val_pair, scaler = arrays_for_split(
         paths["train"], paths["val"], feature_names, args.window_size, args.stride)
+    if p.get("teacher_checkpoint_sha256") != sha256_file(checkpoint):
+        raise ValueError("Stage 3 teacher artifact checksum mismatch")
+    if p.get("train_fitted_scaler_sha256") != sha256_file(scaler_path):
+        raise ValueError("Stage 3 scaler artifact checksum mismatch")
     with np.load(scaler_path, allow_pickle=False) as saved:
         if not np.allclose(saved["mean"], scaler.mean_) or not np.allclose(saved["scale"], scaler.scale_):
             raise ValueError("Stage 3 scaler does not match TRAIN-only recomputation")
