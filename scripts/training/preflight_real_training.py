@@ -94,7 +94,9 @@ def assess(dataset, seed, stage, split_root, feature_json, stage3_root,
                                 or record.get("features") != features
                                 or record.get("feature_list_sha256") != sha256(feature_json)
                                 or record.get("train_sha256") != sha256(files[link]["train"])
-                                or record.get("val_sha256") != sha256(files[link]["val"])):
+                                or record.get("val_sha256") != sha256(files[link]["val"])
+                                or (cp.is_file() and record.get("teacher_checkpoint_sha256") != sha256(cp))
+                                or (scaler.is_file() and record.get("train_fitted_scaler_sha256") != sha256(scaler))):
                             blocker("Stage 3 provenance mismatch: " + str(prov))
                     except (ValueError, OSError, json.JSONDecodeError):
                         blocker("Invalid Stage 3 provenance JSON: " + str(prov))
