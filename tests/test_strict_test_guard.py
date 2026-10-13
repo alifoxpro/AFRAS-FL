@@ -25,7 +25,7 @@ def fixture(home):
     features = [f"f{i}" for i in range(14)]
     feature_json = home / "data" / "unified_selected_14.json"
     feature_json.parent.mkdir()
-    feature_json.write_text(json.dumps({"selected_features": features}))
+    # The strict pipeline now rejects a feature list without TRAIN-only provenance.
     raw = home / "raw"
     raw.mkdir()
     for j in range(5):
@@ -41,6 +41,17 @@ def fixture(home):
     stage4_root = home / "stage4"
     out = splitter.split_dataset(raw, split_root, ds, window_size=20)
     split = json.loads((out / "manifest.json").read_text())
+    feature_json.write_text(json.dumps({
+        "schema": "afras-train-feature-selection-v1",
+        "selected_features": features,
+        "datasets": [ds],
+        "candidate_features_sha256": "a" * 64,
+        "split_manifest_sha256_by_dataset": {
+            ds: guard.sha256_file(out / "manifest.json")},
+        "train_sha256_by_dataset_link": {
+            ds: {link: entry["partitions"]["train"]["sha256"]
+                 for link, entry in split["links"].items()}},
+    }))
     teacher_map, scaler_map, provenance_map = {}, {}, {}
     for link, entry in split["links"].items():
         d = stage3_root / ds / link
