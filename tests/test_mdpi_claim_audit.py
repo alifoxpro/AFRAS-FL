@@ -45,7 +45,7 @@ class AuditTests(unittest.TestCase):
         self.assertNotIn("LAMBDA_SWEEP_CONFLICT", ids)
 
     def test_detect_inert_coordination(self):
-        src = "def _get_neighbor_actions(self):\\n        return None\\n"
+        src = "def _get_neighbor_actions(self):\n        return None\n"
         ids = {x["id"] for x in mod.audit(TEMPLATE, src)["findings"]}
         self.assertIn("R_LINK_INACTIVE", ids)
 
