@@ -118,12 +118,16 @@ def emit_csv(path, data):
     with path.open("w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(["phase", "client", "n", "action_success_rate",
-                         "false_block_on_low", "false_allow_on_high"])
+                         "false_block_on_low", "false_allow_on_high",
+                         "binary_FPR", "binary_FNR", "TP", "FP", "TN", "FN"])
         for phase in PHASES:
             for link, item in sorted(data[phase]["per_client"].items()):
+                binary = item.get("binary_ids") or {}
                 writer.writerow([
                     phase, link, item["n"], item["action_success_rate"],
-                    item["false_block_on_low"], item["false_allow_on_high"]])
+                    item["false_block_on_low"], item["false_allow_on_high"],
+                    binary.get("FPR"), binary.get("FNR"), binary.get("TP"),
+                    binary.get("FP"), binary.get("TN"), binary.get("FN")])
 
 
 def emit_markdown(path, frozen, results):
@@ -144,10 +148,22 @@ def emit_markdown(path, frozen, results):
         lines.append("| {} | {:.6f} | {:.6f} | {:.6f} | {} |".format(
             phase, r["pooled_action_success"], r["mean_client_action_success"],
             r["jain_fairness_client_action_success"], r["total_test_windows"]))
+    if any(results[p]["pooled_binary_ids"] is not None for p in PHASES):
+        lines += ["", "## Binary IDS metrics — DECLARED original raw-label mapping",
+                  "Decision: ALLOW predicts benign; RATE_LIMIT and BLOCK predict attack.",
+                  "Authenticity of the raw-source labels still requires external review.",
+                  "", "| Phase | FPR | FNR | TP | FP | TN | FN |",
+                  "|---|---:|---:|---:|---:|---:|---:|"]
+        for phase in PHASES:
+            m = results[phase]["pooled_binary_ids"]
+            if m is not None:
+                fmt = lambda v: ("undefined" if v is None else f"{v:.6f}")
+                lines.append(f"| {phase} | {fmt(m['FPR'])} | {fmt(m['FNR'])} | "
+                             f"{m['TP']} | {m['FP']} | {m['TN']} | {m['FN']} |")
     lines += [
         "", "Full 3x3 confusion matrices and per-client statistics are in TEST_RESULTS.json.",
         "Rows are High/Medium/Low. Columns are ALLOW/RATE_LIMIT/BLOCK.",
-        "These are severity-action decision metrics, NOT verified IDS binary FPR/FNR.",
+        "Category-level errors are distinct from binary IDS FPR/FNR.",
         "This does not certify source-device/group independence or upstream preprocessing.",
         "",
     ]
