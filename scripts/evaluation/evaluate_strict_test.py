@@ -181,7 +181,7 @@ def main():
     p.add_argument("--stage4-root", type=Path,
                    default=REPO / "experiments" / "strict_stage4")
     p.add_argument("--feature-json", type=Path,
-                   default=REPO / "data" / "unified_selected_14.json")
+                   default=REPO / "data" / "selected_14_train_only.json")
     p.add_argument("--output-root", type=Path,
                    default=REPO / "experiments" / "strict_test_eval")
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
