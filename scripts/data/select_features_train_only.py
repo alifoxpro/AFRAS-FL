@@ -179,7 +179,7 @@ def main():
     repo = Path(__file__).resolve().parents[2]
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--split-root", type=Path,
-                   default=repo / "data" / "unified_14features_5links_strict_split")
+                   default=repo / "data" / "full_candidate_strict_split")
     p.add_argument("--candidate-json", type=Path, required=True)
     p.add_argument("--datasets", nargs="+", default=["ciciot2023", "diad2024"])
     p.add_argument("--n-features", type=int, default=14)
