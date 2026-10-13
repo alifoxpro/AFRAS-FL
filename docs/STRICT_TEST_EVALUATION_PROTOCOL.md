@@ -9,11 +9,13 @@ strict Stage 3 teacher / Stage 4 policy checkpoints.
 1. Audit how 14 features and High/Medium/Low labels were constructed from raw datasets.
 2. Verify that source rows are meaningfully ordered and that device/session/campaign
    leakage has been excluded. A 19-record embargo alone is not sufficient.
-3. Generate the strict split manifest, train Mamba teachers from TRAIN with
+3. Generate the strict split manifest using independently verified full-candidate
+   data and TRAIN-only feature selection. Train seed-scoped Mamba teachers from TRAIN with
    VAL-based checkpoint selection, and train B2/B3/B4 policies from TRAIN
    with VAL-based checkpoint selection.
 4. Freeze all three predeclared policies and document the intended comparisons.
-5. Confirm the TRAIN-fitted scalers, Stage 3 teacher provenance, Stage 4
+5. Confirm the seed-matched TRAIN-fitted scalers and teacher checkpoint SHA-256s,
+   Stage 3 teacher provenance, Stage 4
    provenance, split manifest and TEST hashes are all consistent.
 6. Only then, execute the one-time unsealing command.
 
