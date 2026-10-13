@@ -32,6 +32,7 @@ sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "training"))
 
 from scripts.data.strict_manifest import validate_stage3_inputs
+from scripts.data.feature_provenance import validate_train_feature_selection
 from train_isolated import MambaOnlyModel, create_windows, SEV_MAP, seed_everything
 
 CLASS_COUNT = 3
@@ -204,16 +205,13 @@ def main():
         parser.error("epochs, batch size, window size and stride must be positive")
     if not 0 < args.learning_rate <= 1:
         parser.error("learning rate must be positive and at most 1")
-    feature_info = json.loads(args.feature_json.read_text(encoding="utf-8"))
-    features = feature_info["selected_features"] if isinstance(feature_info, dict) else feature_info
-    if not features or len(features) != len(set(features)) or "severity" in features:
-        raise ValueError("Invalid feature selection JSON")
     feature_sha = sha256_file(args.feature_json)
     random.seed(args.seed)
     seed_everything(args.seed)
     datasets = ("ciciot2023", "diad2024") if args.dataset == "all" else (args.dataset,)
     for dataset in datasets:
         directory = args.split_root / dataset
+        features = validate_train_feature_selection(args.feature_json, args.split_root, dataset)
         inputs = validate_stage3_inputs(directory, dataset, window_size=args.window_size)
         # Do not resume old checkpoints/caches; provenance is unique for each run.
         for link, paths in inputs.items():
