@@ -72,6 +72,29 @@ class StrictSplitTests(unittest.TestCase):
                 mod.split_dataset(src.parent, root / "splits", "ciciot2023",
                                   time_column="event_time")
 
+    def test_groups_cannot_cross_partitions_across_links(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first = root / "raw" / "Link_1_Core.csv"
+            second = root / "raw" / "Link_2_Core.csv"
+            write_input(first)
+            write_input(second)
+            # Link 1 / row 0: device_0 is in TRAIN.
+            # Link 2 / row 190: device_0 is in VAL, but each link alone
+            # looks group-disjoint. The GLOBAL across-link guard must fail.
+            with second.open(newline="") as fh:
+                reader = csv.DictReader(fh)
+                columns, data = reader.fieldnames, list(reader)
+            data[190]["device"] = "device_0"
+            with second.open("w", newline="") as fh:
+                writer = csv.DictWriter(fh, fieldnames=columns)
+                writer.writeheader()
+                writer.writerows(data)
+            with self.assertRaisesRegex(ValueError, "crosses"):
+                mod.split_dataset(first.parent, root / "splits", "ciciot2023",
+                                  group_column="device")
+            self.assertFalse((root / "splits" / "ciciot2023").exists())
+
     def test_reject_too_short(self):
         with self.assertRaises(ValueError):
             mod.ordered_ranges(70, 20)
