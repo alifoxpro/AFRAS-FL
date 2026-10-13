@@ -36,9 +36,16 @@ experiments/
 *.pth
 *.npy
 
-# Large data files (regenerate from raw via data/unify_features.py)
+# Raw benchmark archives and extracted data MUST stay out of public Git
+# These research sources may require individual CIC registration.
 data/
 *.csv
+*.zip
+*.7z
+*.tar
+*.parquet
+*.pcap
+*.pcapng
 
 # Logs
 *.log
