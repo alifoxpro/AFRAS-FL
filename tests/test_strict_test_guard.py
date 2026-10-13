@@ -62,6 +62,8 @@ def fixture(home):
         p = {
             "protocol": guard.STAGE3_SCHEMA,
             "seed": seed,
+            "teacher_checkpoint_sha256": guard.sha256_file(checkpoint),
+            "train_fitted_scaler_sha256": guard.sha256_file(scaler),
             "dataset": ds, "link": link,
             "test_access": "NONE — not accessed",
             "features": features, "feature_list_sha256": guard.sha256_file(feature_json),
