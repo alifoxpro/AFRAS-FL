@@ -38,6 +38,13 @@ def validate_stage3_inputs(split_dir, dataset, window_size=20):
         raise StrictManifestError("Unsupported split manifest schema")
     if manifest.get("dataset") != dataset:
         raise StrictManifestError("Dataset mismatch in strict-split manifest")
+    source = manifest.get("source_harmonization")
+    if (isinstance(source, dict)
+            and source.get("link_assignment_mode") ==
+                "EXPLORATORY_SYNTHETIC_NONPHYSICAL"):
+        raise StrictManifestError(
+            "Nonphysical synthetic five-way shards are PILOT ONLY; "
+            "strict model training is blocked")
     if manifest.get("window_size") != window_size:
         raise StrictManifestError("Window length differs from split embargo specification")
     if manifest.get("method") != "source_order_with_embargo; split_before_windowing":
