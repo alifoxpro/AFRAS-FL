@@ -80,11 +80,13 @@ def maybe_train_subset(state, targets, probs, maximum, seed):
 
 def load_client(dataset, link, paths, feature_names, args, out_root):
     """Validate strict teacher provenance and produce TRAIN/VAL state arrays."""
-    stage3_dir = args.stage3_root / dataset / link
+    stage3_dir = args.stage3_root / dataset / f"seed_{args.seed}" / link
     provenance = stage3_dir / "provenance.json"
     if not provenance.is_file():
         raise FileNotFoundError(f"Missing strict Stage 3 provenance: {provenance}")
     p = json.loads(provenance.read_text(encoding="utf-8"))
+    if p.get("seed") != args.seed:
+        raise ValueError("Strict Stage 3 teacher seed does not match Stage 4")
     if p.get("protocol") != "strict-stage3-train-val-only-v1":
         raise ValueError("Untrusted or old Stage 3 checkpoint")
     if p.get("dataset") != dataset or p.get("link") != link:
@@ -324,6 +326,8 @@ def main():
     if not (0 < args.learning_rate <= 1 and 0 <= args.epsilon <= 1 and
             0 <= args.lambda_fuzzy <= 1 and 0 <= args.fedprox_mu <= 1):
         parser.error("Invalid optimization/reward hyperparameters")
+    if args.stride > args.window_size:
+        parser.error("stride may not exceed window size in strict Stage 4")
     if args.max_train_windows < 0 or (args.max_train_windows and not args.pilot):
         parser.error("Subsampling TRAIN requires --pilot; results are not full-run statistics")
     features = validate_train_feature_selection(args.feature_json, args.split_root, args.dataset)
