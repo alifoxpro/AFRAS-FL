@@ -125,7 +125,7 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--stage", choices=("stage3", "stage4"), required=True)
     parser.add_argument("--split-root", type=Path,
-                        default=repo / "data" / "unified_14features_5links_strict_split")
+                        default=repo / "data" / "full_candidate_strict_split")
     parser.add_argument("--feature-json", type=Path,
                         default=repo / "data" / "selected_14_train_only.json")
     parser.add_argument("--stage3-root", type=Path,
