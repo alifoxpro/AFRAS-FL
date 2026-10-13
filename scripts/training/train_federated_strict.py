@@ -129,6 +129,7 @@ def load_client(dataset, link, paths, feature_names, args, out_root):
         "n_train": len(tr_labels),
         "stage3_provenance_sha256": sha256_file(provenance),
         "stage3_checkpoint_sha256": sha256_file(checkpoint),
+        "stage3_scaler_sha256": sha256_file(scaler_path),
     }
 
 
@@ -279,6 +280,7 @@ def train_one_phase(name, clients, args, root, fuzzy):
         "phase": name, "best_round_val_only": best_round,
         "best_val_mean_action_success": best_score,
         "checkpoint": ckpt.name, "validation_only": True,
+        "checkpoint_sha256": sha256_file(ckpt),
     }
 
 
@@ -354,6 +356,9 @@ def main():
     settings = {k: str(v) if isinstance(v, Path) else v for k,v in vars(args).items()}
     metadata = {
         "schema": "strict-fed-contextual-bandit-v1",
+        "dataset": args.dataset,
+        "split_manifest_sha256": sha256_file(
+            args.split_root / args.dataset / "manifest.json"),
         "scientific_status": "TRAIN/VAL only; no independent TEST, no deployment claim",
         "source_experiment": "new protocol, NOT historical manuscript output",
         "data_source": "split-before-window TRAIN/VAL",
@@ -365,6 +370,8 @@ def main():
             c["link"]: c["stage3_checkpoint_sha256"] for c in clients},
         "client_stage3_provenance_sha256": {
             c["link"]: c["stage3_provenance_sha256"] for c in clients},
+        "client_stage3_scaler_sha256": {
+            c["link"]: c["stage3_scaler_sha256"] for c in clients},
         "client_train_counts": {c["link"]: c["n_train"] for c in clients},
         "fuzzy_train_only": rule_summary,
         "phases": phases,
