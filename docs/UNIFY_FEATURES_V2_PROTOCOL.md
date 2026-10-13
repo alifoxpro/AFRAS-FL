@@ -14,6 +14,16 @@ Official sources:
 Read the ACTUAL CSV headers; do not assume the same feature labels, capture
 times, device IDs or link topology across releases/modalities.
 
+## Initial step — inspect the official ZIP safely
+
+Once access to the university's registration-based download is available,
+use the offline ZIP inspector before extracting. It detects original CSV
+headers and file checksums, rejects dangerous archive paths and never
+invents five physical SDN link IDs. See
+[OFFICIAL_CSV_DOWNLOAD_AND_ARCHIVE_PREFLIGHT.md](OFFICIAL_CSV_DOWNLOAD_AND_ARCHIVE_PREFLIGHT.md)
+and scripts/data/prepare_official_dataset_archive.py. **No publisher ZIP
+has been obtained in this repository.**
+
 ## Step A — Get original CSVs from the above university pages
 
 Download them to your own research machine. Keep the original raw ZIP and
