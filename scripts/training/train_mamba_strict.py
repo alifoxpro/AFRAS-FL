@@ -122,7 +122,7 @@ def epoch_metrics(model, loader, criterion, device, optimizer=None):
 
 
 def train_link(dataset, link, paths, features, feature_sha, args, output_root):
-    out = output_root / dataset / link
+    out = output_root / dataset / f"seed_{args.seed}" / link
     if out.exists():
         raise FileExistsError(
             f"Refusing to reuse existing strict-stage3 checkpoint/results: {out}")
@@ -203,6 +203,8 @@ def main():
 
     if min(args.epochs, args.batch_size, args.window_size, args.stride) < 1:
         parser.error("epochs, batch size, window size and stride must be positive")
+    if args.stride > args.window_size:
+        parser.error("stride may not exceed the window size in the strict pipeline")
     if not 0 < args.learning_rate <= 1:
         parser.error("learning rate must be positive and at most 1")
     feature_sha = sha256_file(args.feature_json)
