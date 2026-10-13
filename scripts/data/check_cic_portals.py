@@ -10,6 +10,12 @@ import json
 import urllib.error
 import urllib.request
 
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Never follow a download or login redirect from the public status page."""
+    def redirect_request(self, request, fp, code, msg, headers, newurl):
+        return None
+
 FORM_PAGES = {
     "ciciot2023": "https://cicresearch.ca/IOTDataset/CIC_IOT_Dataset2023/",
     "diad2024": "https://cicresearch.ca/IOTDataset/CIC-IoT-IDAD-Dataset-2024/",
@@ -39,7 +45,7 @@ def check(dataset, fetch=None):
             request = urllib.request.Request(
                 target,
                 headers={"User-Agent": "AFRAS-FL-public-form-status/1.0"})
-            with urllib.request.urlopen(request, timeout=12) as response:
+            with urllib.request.build_opener(NoRedirect()).open(request, timeout=12) as response:
                 data = response.read(MAX_BYTES + 1)
                 if len(data) > MAX_BYTES:
                     raise ValueError("Registration page exceeds safety size limit")
