@@ -17,7 +17,9 @@ is revalidated by this source commit.
 ## Example
 
 \`\`\`bash
-python scripts/data/split_records_leakfree.py --datasets ciciot2023 diad2024 --window-size 20
+python scripts/data/split_records_leakfree.py --input-root /verified/unselected_5link_csvs --datasets ciciot2023 diad2024 --window-size 20 --group-column VERIFIED_SESSION_ID --time-column VERIFIED_EVENT_TIME
+python scripts/data/select_features_train_only.py --candidate-json /reviewed/candidates.json --datasets ciciot2023 diad2024 --n-features 14
+python scripts/training/preflight_real_training.py --dataset ciciot2023 --stage stage3 --seed 42
 python scripts/training/train_mamba_strict.py --dataset ciciot2023 --epochs 30 --seed 42
 \`\`\`
 
@@ -38,9 +40,9 @@ load old checkpoints, or access test CSVs. Test metrics **must not** appear in
    unsafe pooled PCA/cache preparation and evaluation. **DO NOT** feed this
    checkpoint into those old pipelines and label the result leakage-free.
 2. No independent test metrics are produced or claimed.
-3. The \`selected_features\` manifest may have been created using all samples.
-   Before journal claims, reselect or justify fixed, externally prespecified
-   features without peeking at VAL/TEST. The upstream raw \`severity\` taxonomy
+3. The strict TRAIN-only feature manifest is source-hash checked and rejected
+   when it lacks proper split lineage; this still does NOT independently audit
+   original candidate feature derivation or raw data preprocessing. The upstream raw \`severity\` taxonomy
    and attack-vs-benign interpretation must also be independently verified.
 4. The split script's schema verifies row ranges/embargo, not cross-client
    duplicate flows, session/campaign overlap or leakage in raw upstream
