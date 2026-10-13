@@ -172,12 +172,33 @@ def _split_one(source, dataset_root, window_size, group_column, time_column):
 
 
 def split_dataset(input_dir, output_root, dataset, window_size=20,
-                  group_column=None, time_column=None):
+                  group_column=None, time_column=None,
+                  allow_exploratory_synthetic_links=False):
     """Refuse overwriting existing data, and publish only after all links pass."""
     input_dir, output_root = Path(input_dir).resolve(), Path(output_root).resolve()
     files = sorted(input_dir.glob(LINK_PATTERN))
     if not files:
         raise FileNotFoundError(f"No {LINK_PATTERN} input files in {input_dir}")
+    harmonization = None
+    source_report = input_dir / "harmonization_manifest.json"
+    if source_report.is_file():
+        harmonization = json.loads(source_report.read_text(encoding="utf-8"))
+        if (harmonization.get("schema") != "afras-harmonized-full-candidate-v2"
+                or harmonization.get("dataset") != dataset
+                or set(harmonization.get("link_files", {})) !=
+                   {f.stem for f in files}):
+            raise ValueError("Invalid source harmonization manifest / five-link inventory")
+        for source in files:
+            provenance = harmonization["link_files"][source.stem]
+            if (provenance.get("file") != source.name
+                    or provenance.get("sha256") != digest_file(source)):
+                raise ValueError(f"Harmonized source file changed: {source}")
+        if (harmonization.get("link_assignment_mode") ==
+                "EXPLORATORY_SYNTHETIC_NONPHYSICAL"
+                and not allow_exploratory_synthetic_links):
+            raise ValueError(
+                "Synthetic nonphysical links cannot enter strict splits by default. "
+                "Use --allow-exploratory-synthetic-links ONLY for visibly tagged pilots")
     target = output_root / dataset
     if target.exists():
         raise FileExistsError(f"Split output already exists: {target}")
@@ -196,6 +217,12 @@ def split_dataset(input_dir, output_root, dataset, window_size=20,
             "method": "source_order_with_embargo; split_before_windowing",
             "window_size": window_size,
             "proportions_requested": [0.70, 0.15, 0.15],
+            "source_harmonization": ({
+                "manifest_sha256": digest_file(source_report),
+                "link_assignment_mode": harmonization["link_assignment_mode"],
+                "topology_independently_verified":
+                    harmonization.get("topology_independently_verified", False),
+            } if harmonization else None),
             "group_disjoint_verified": bool(group_column),
             "group_disjoint_scope": "ALL_CLIENT_LINKS_WITHIN_DATASET" if group_column else None,
             "time_order_verified": bool(time_column),
@@ -225,6 +252,8 @@ def main():
                         help="If provided, abort when a group appears in two splits")
     parser.add_argument("--time-column", default=None,
                         help="If provided, require nondecreasing numeric/ISO time")
+    parser.add_argument("--allow-exploratory-synthetic-links", action="store_true",
+                        help="ALLOW only labeled synthetic pilot shards; strict Stage 3 refuses these")
     args = parser.parse_args()
     for dataset in args.datasets:
         target = split_dataset(
@@ -232,6 +261,7 @@ def main():
             window_size=args.window_size,
             group_column=args.group_column,
             time_column=args.time_column,
+            allow_exploratory_synthetic_links=args.allow_exploratory_synthetic_links,
         )
         print(f"Created {target} (manifest.json + per-link train/val/test CSV files)")
 
