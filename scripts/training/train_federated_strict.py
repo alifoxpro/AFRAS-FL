@@ -31,6 +31,7 @@ sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "training"))
 
 from scripts.data.strict_manifest import validate_stage3_inputs
+from scripts.data.feature_provenance import validate_train_feature_selection
 from scripts.data.label_evidence import audit_train_val
 from scripts.training.strict_fed_core import decision_metrics, jain_fairness, mosar_reward
 from scripts.training.train_mamba_strict import arrays_for_split, sha256_file
@@ -325,10 +326,9 @@ def main():
         parser.error("Invalid optimization/reward hyperparameters")
     if args.max_train_windows < 0 or (args.max_train_windows and not args.pilot):
         parser.error("Subsampling TRAIN requires --pilot; results are not full-run statistics")
-    features_info = json.loads(args.feature_json.read_text(encoding="utf-8"))
-    features = features_info["selected_features"] if isinstance(features_info, dict) else features_info
-    if len(features) != 14 or len(features) != len(set(features)):
-        parser.error("28D strict state requires exactly 14 unique features")
+    features = validate_train_feature_selection(args.feature_json, args.split_root, args.dataset)
+    if len(features) != 14:
+        parser.error("28D strict state requires exactly 14 reviewed TRAIN-selected features")
     inputs = validate_stage3_inputs(args.split_root / args.dataset, args.dataset,
                                     window_size=args.window_size)
     if len(inputs) != 5:
