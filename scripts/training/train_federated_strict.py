@@ -31,6 +31,7 @@ sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "training"))
 
 from scripts.data.strict_manifest import validate_stage3_inputs
+from scripts.data.label_evidence import audit_train_val
 from scripts.training.strict_fed_core import decision_metrics, jain_fairness, mosar_reward
 from scripts.training.train_mamba_strict import arrays_for_split, sha256_file
 from train_isolated import MambaOnlyModel, seed_everything
@@ -307,6 +308,8 @@ def main():
     parser.add_argument("--stride", type=int, default=20)
     parser.add_argument("--max-train-windows", type=int, default=0)
     parser.add_argument("--max-rule-windows", type=int, default=3000)
+    parser.add_argument("--label-evidence", type=Path, default=None,
+                        help="Predeclared raw label/attack mapping. Audit TRAIN/VAL only; seal SHA-256.")
     parser.add_argument("--pilot", action="store_true",
                         help="Required if max-train-windows is used; outputs must be labeled PILOT")
     parser.add_argument("--seed", type=int, default=42)
@@ -330,6 +333,9 @@ def main():
                                     window_size=args.window_size)
     if len(inputs) != 5:
         raise ValueError(f"Federated 5-client setup requires five links; found {len(inputs)}")
+    label_audit = (audit_train_val(args.split_root / args.dataset, args.dataset,
+                                   args.label_evidence)
+                   if args.label_evidence is not None else None)
     output = args.output_root / args.dataset / f"seed_{args.seed}"
     if output.exists():
         raise FileExistsError(f"Refusing to overwrite existing strict Stage 4 run: {output}")
@@ -363,6 +369,9 @@ def main():
         "source_experiment": "new protocol, NOT historical manuscript output",
         "data_source": "split-before-window TRAIN/VAL",
         "test_access": "NONE",
+        "raw_label_evidence_sha256": label_audit["evidence_sha256"] if label_audit else None,
+        "raw_label_provenance": label_audit["source_provenance"] if label_audit else None,
+        "raw_label_train_val_audit": label_audit["train_val_categories"] if label_audit else None,
         "mu_link_effective": 0,
         "discount_gamma": 0,
         "action_space": ["ALLOW", "RATE_LIMIT", "BLOCK"],
