@@ -67,7 +67,7 @@ def audit(tex, strategy_b=None):
         flag("RELEASE_ARTIFACT_GAP", "critical",
              "Claimed released splits and result artefacts require verification.",
              "Provide immutable public URLs, split files/hashes and per-seed result evidence.")
-    if re.search(r"\\mathbb\{E\}\\s*\\bigl\[\\gamma_\{\\text\{RL\}\}", tex):
+    if re.search(r"\\mathbb\{E\}\s*\\bigl\[\\gamma_\{\\text\{RL\}\}", tex):
         flag("PBRS_EXPECTATION", "critical",
              "Expected potential difference is not generally zero under exogenous contexts.",
              "For stationary contexts it equals (gamma-1)*E[Phi], not zero in general.")
