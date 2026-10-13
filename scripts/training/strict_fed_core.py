@@ -78,3 +78,31 @@ def decision_metrics(severities, actions):
         "severity_action_counts": [[sum((s == ss and act == aa) for s, act in zip(y, a))
                                      for aa in range(3)] for ss in range(3)],
     }
+
+
+def binary_intrusion_metrics(is_attack, actions):
+    """Only when raw Attack/Benign provenance exists.
+
+    Action 0 ALLOW predicts benign, actions 1 RATE_LIMIT and 2 BLOCK predict attack.
+    Undefined rates (empty positive/negative class) return None, not fabricated zero.
+    """
+    y, a = list(is_attack), list(actions)
+    if not y or len(y) != len(a):
+        raise ValueError("Aligned nonempty binary labels and actions required")
+    if any(type(z) not in (int, bool) or z not in (0, 1) for z in y):
+        raise ValueError("Attack labels must be explicit 0/1 integers")
+    if any(type(z) is not int or z not in (0, 1, 2) for z in a):
+        raise ValueError("Actions must be 0=ALLOW, 1=RATE_LIMIT or 2=BLOCK")
+    TP = sum(z == 1 and p != 0 for z, p in zip(y, a))
+    FN = sum(z == 1 and p == 0 for z, p in zip(y, a))
+    FP = sum(z == 0 and p != 0 for z, p in zip(y, a))
+    TN = sum(z == 0 and p == 0 for z, p in zip(y, a))
+    return {
+        "TP": TP, "FN": FN, "FP": FP, "TN": TN,
+        "FPR": FP / (FP + TN) if FP + TN else None,
+        "FNR": FN / (FN + TP) if FN + TP else None,
+        "TPR": TP / (TP + FN) if TP + FN else None,
+        "TNR": TN / (TN + FP) if TN + FP else None,
+        "binary_attack_prediction_rule": "ALLOW=benign; RATE_LIMIT/BLOCK=attack",
+        "requires_raw_label_evidence": True,
+    }
