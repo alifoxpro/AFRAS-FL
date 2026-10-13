@@ -11,7 +11,6 @@ import csv
 import hashlib
 import json
 import os
-import shutil
 import sqlite3
 import tempfile
 from collections import Counter
@@ -118,9 +117,9 @@ def _split_one(source, dataset_root, window_size, group_column, time_column):
             writer.writeheader()
             writers[part] = writer
         if group_column:
-            group_db = sqlite3.connect(str(dataset_root / (basename + ".groups.sqlite")))
+            group_db = sqlite3.connect(str(dataset_root / "__cross_link_group_index.sqlite"))
             group_db.execute(
-                "CREATE TABLE groups (grp TEXT PRIMARY KEY, partition TEXT NOT NULL)")
+                "CREATE TABLE IF NOT EXISTS groups (grp TEXT PRIMARY KEY, partition TEXT NOT NULL)")
         with open(source, newline="", encoding="utf-8-sig") as inp:
             reader = csv.DictReader(inp)
             for idx, record in enumerate(reader):
@@ -150,7 +149,6 @@ def _split_one(source, dataset_root, window_size, group_column, time_column):
             f.close()
         if group_db:
             group_db.close()
-            (dataset_root / (basename + ".groups.sqlite")).unlink(missing_ok=True)
     for part in SPLITS:
         if counts[part] != ranges[part][1] - ranges[part][0]:
             raise RuntimeError("Partition count mismatch")
@@ -190,6 +188,8 @@ def split_dataset(input_dir, output_root, dataset, window_size=20,
         for source in files:
             manifests[source.stem] = _split_one(
                 source, stage, window_size, group_column, time_column)
+        # Global key index covers ALL links. Do not publish the SQLite scratch file.
+        (stage / "__cross_link_group_index.sqlite").unlink(missing_ok=True)
         manifest = {
             "schema": "afras-fl-strict-ordered-split-v1",
             "dataset": dataset,
@@ -197,6 +197,7 @@ def split_dataset(input_dir, output_root, dataset, window_size=20,
             "window_size": window_size,
             "proportions_requested": [0.70, 0.15, 0.15],
             "group_disjoint_verified": bool(group_column),
+            "group_disjoint_scope": "ALL_CLIENT_LINKS_WITHIN_DATASET" if group_column else None,
             "time_order_verified": bool(time_column),
             "limitations": [
                 "Source order must represent a defensible chronology or sequence.",
