@@ -59,7 +59,7 @@ This is a coverage and internal-consistency check only. It does NOT confer autho
 
 ## Third preserve and verify end-to-end row lineage
 
-The public repository **does not contain** the original `data/unify_features.py` / raw harmonization script previously referenced by README. Recreating source-to-harmonized data therefore remains BLOCKED until that original code and the original data are supplied and audited.
+The public repository **does not contain** the original `data/unify_features.py` / raw harmonization script previously referenced by README. Reproducing the **historical** source-to-harmonized process remains BLOCKED until its original code and datasets are supplied and audited. A distinct, explicitly labeled replacement is now implemented in `scripts/data/unify_features_v2.py` and documented in `docs/UNIFY_FEATURES_V2_PROTOCOL.md`; it still requires authenticated original raw CSVs, a reviewed feature alias map, an exhaustive attack/severity policy and independent link-topology evidence.
 
 The eventual harmonization must document: file version and checksum, source row ID, original attack category, reviewed binary attack flag, custom severity decision, all original candidate features, any missingness/imputation, original capture/session/group keys, source time ordering and link assignment rules. It must not silently assign unknown labels to Low. Pre-split feature engineering and near-duplicate cross-link flows are still not audited.
 
