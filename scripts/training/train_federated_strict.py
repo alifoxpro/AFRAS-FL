@@ -294,7 +294,7 @@ def main():
     parser.add_argument("--stage3-root", type=Path,
                         default=REPO / "experiments" / "strict_stage3")
     parser.add_argument("--feature-json", type=Path,
-                        default=REPO / "data" / "unified_selected_14.json")
+                        default=REPO / "data" / "selected_14_train_only.json")
     parser.add_argument("--output-root", type=Path,
                         default=REPO / "experiments" / "strict_stage4")
     parser.add_argument("--rounds", type=int, default=10)
