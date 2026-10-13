@@ -228,7 +228,11 @@ def load_link_data(csv_path, feature_order):
     del df
     gc.collect()
     X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
-    y = np.array([SEV_MAP.get(s, 2) for s in y_str], dtype=np.int64)
+    unknown = sorted({str(s) for s in y_str if s not in SEV_MAP})
+    if unknown:
+        raise ValueError(f'Unknown severity labels in {csv_path}: {unknown[:20]}. '
+                         'Refusing to silently classify unknown data as Low.')
+    y = np.array([SEV_MAP[s] for s in y_str], dtype=np.int64)
     del y_str
     gc.collect()
     log(f'      Class dist: H={np.sum(y==0):,} M={np.sum(y==1):,} L={np.sum(y==2):,}')
