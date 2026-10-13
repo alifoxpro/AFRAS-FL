@@ -6,7 +6,10 @@ Not equivalent to the historical manuscript's published tables.
 
 ## What this implements
 
-- Exact upstream split-manifest and strict Stage3 teacher provenance validation.
+- Exact upstream split-manifest and strict Stage3 teacher provenance validation,
+  including **same-seed** teacher checkpoints from
+  \`experiments/strict_stage3/<dataset>/seed_<seed>/<link>/\` and stored
+  teacher/scaler SHA-256 checksums.
 - Mamba checkpoint trained on TRAIN and selected by VAL is loaded per client.
 - **28-dimensional aligned state**: 14 TRAIN-standardized feature means,
   11 feature standard deviations, and 3 Mamba softmax probabilities.
@@ -38,7 +41,10 @@ Not equivalent to the historical manuscript's published tables.
 ## Run prerequisites and invocation
 
 1. Create the ordered train/val/test split with \`scripts/data/split_records_leakfree.py\`.
-2. Train a fresh Mamba teacher with \`scripts/training/train_mamba_strict.py\`.
+2. Generate a reviewed TRAIN-only feature-selection manifest from a full candidate pool,
+   then train fresh Mamba teachers with \`scripts/training/train_mamba_strict.py\`
+   **using the same seed** as Stage 4. Run the preflight from
+   \`docs/TRAINING_EXECUTION_PREFLIGHT.md\` before Stage 3 and before Stage 4.
 3. For each dataset run:
 
 \`\`\`bash
