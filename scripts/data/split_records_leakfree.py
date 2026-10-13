@@ -217,8 +217,9 @@ def main():
     repo = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--datasets", nargs="+", default=["ciciot2023", "diad2024"])
-    parser.add_argument("--input-root", type=Path, default=repo / "data" / "unified_14features_5links")
-    parser.add_argument("--output-root", type=Path, default=repo / "data" / "unified_14features_5links_strict_split")
+    parser.add_argument("--input-root", type=Path, required=True,
+                        help="Explicit path to independently reviewed UNSELECTED candidate-feature source CSVs")
+    parser.add_argument("--output-root", type=Path, default=repo / "data" / "full_candidate_strict_split")
     parser.add_argument("--window-size", type=int, default=20)
     parser.add_argument("--group-column", default=None,
                         help="If provided, abort when a group appears in two splits")
