@@ -6,10 +6,10 @@ is revalidated by this source commit.
 
 ## Prerequisites
 - \`scripts/data/split_records_leakfree.py\` has generated the split CSVs.
-- The \`data/unified_selected_14.json\` file contains the *original, documented*
-  feature list. This code **does not certify that the feature-selection step
-  itself was restricted to TRAIN**. Audit the upstream feature selection and
-  mapping before claiming the full protocol is leakage-free.
+- Use a reviewed TRAIN-only feature manifest \`data/selected_14_train_only.json\`,
+  generated **after** splitting from at least 15 independently reviewed
+  candidate feature columns. Historical \`unified_selected_14.json\` is
+  refused; audit source feature selection before claims.
 - Source dataset row order is valid; no group/time leakage is present.
 - Python 3.10+, PyTorch, numpy, pandas, scipy, sklearn, matplotlib, seaborn.
 - Sufficient RAM/GPU memory for original per-link CSVs and windows.
@@ -21,7 +21,8 @@ python scripts/data/split_records_leakfree.py --datasets ciciot2023 diad2024 --w
 python scripts/training/train_mamba_strict.py --dataset ciciot2023 --epochs 30 --seed 42
 \`\`\`
 
-New per-link outputs are stored under \`experiments/strict_stage3/\`, including:
+New seed-scoped per-client outputs are stored under
+\`experiments/strict_stage3/<dataset>/seed_<seed>/<link>/\`, including:
 - \`mamba_val_best.pt\`: teacher selected exclusively by validation loss.
 - \`train_fitted_scaler.npz\`: normalization statistics fitted only on TRAIN.
 - \`history.json\`: TRAIN/VAL per-epoch history.
