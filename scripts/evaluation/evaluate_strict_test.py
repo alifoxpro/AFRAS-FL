@@ -175,7 +175,7 @@ def main():
     p.add_argument("--dataset", choices=("ciciot2023", "diad2024"), required=True)
     p.add_argument("--seed", type=int, required=True)
     p.add_argument("--split-root", type=Path,
-                   default=REPO / "data" / "unified_14features_5links_strict_split")
+                   default=REPO / "data" / "full_candidate_strict_split")
     p.add_argument("--stage3-root", type=Path,
                    default=REPO / "experiments" / "strict_stage3")
     p.add_argument("--stage4-root", type=Path,
