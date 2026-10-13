@@ -173,6 +173,8 @@ def train_link(dataset, link, paths, features, feature_sha, args, output_root):
         "epochs": args.epochs,
         "best_epoch_selected_on_val": best_epoch,
         "final_val_metrics": final_val,
+        "teacher_checkpoint_sha256": sha256_file(ckpt),
+        "train_fitted_scaler_sha256": sha256_file(out / "train_fitted_scaler.npz"),
         "test_access": "NONE — the test CSV was not accessed",
         "model": "MambaOnlyModel (train_isolated.py)",
         "notes": "Not an independent test score; requires strict RL and test protocol",
