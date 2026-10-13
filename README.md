@@ -23,7 +23,13 @@ See [`docs/PREPROCESSING_LEAKAGE_AUDIT.md`](docs/PREPROCESSING_LEAKAGE_AUDIT.md)
 A **new**, streaming and fail-closed replacement for missing historical data
 harmonization is available at [`scripts/data/unify_features_v2.py`](scripts/data/unify_features_v2.py).
 See [`docs/UNIFY_FEATURES_V2_PROTOCOL.md`](docs/UNIFY_FEATURES_V2_PROTOCOL.md)
-for original CSV, explicit mapping and five-link identity requirements. It
+for original CSV, explicit mapping and five-link identity requirements.
+
+Once official publisher ZIP access is granted, first run the offline
+[official archive inspector](scripts/data/prepare_official_dataset_archive.py)
+and follow the [safe download/extraction protocol](docs/OFFICIAL_CSV_DOWNLOAD_AND_ARCHIVE_PREFLIGHT.md).
+The official dataset portal requires user registration and anonymous access
+was not available during this audit. It
 cannot recover old unpublished preprocessing decisions or train on absent data.
 
 **Do not** relabel the new contextual-bandit experiments as the original
