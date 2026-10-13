@@ -141,9 +141,11 @@ def validate_frozen_run(dataset, seed, split_root, stage3_root, stage4_root, fea
         teacher_file = stage3_dir / "mamba_val_best.pt"
         scaler_file = stage3_dir / "train_fitted_scaler.npz"
         _require(teacher_file.is_file() and
+                 teacher_meta.get("teacher_checkpoint_sha256") == sha256_file(teacher_file) and
                  run.get("client_checkpoint_sha256", {}).get(link) == sha256_file(teacher_file),
                  f"Teacher checkpoint changed: {link}")
         _require(scaler_file.is_file() and
+                 teacher_meta.get("train_fitted_scaler_sha256") == sha256_file(scaler_file) and
                  run.get("client_stage3_scaler_sha256", {}).get(link) == sha256_file(scaler_file),
                  f"Train-fitted scaler changed: {link}")
         partitions = meta.get("partitions", {})
