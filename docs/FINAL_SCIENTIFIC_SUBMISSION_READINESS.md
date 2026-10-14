@@ -12,6 +12,18 @@ claim of confirmed experimental reproducibility or misconduct. Review
 \`docs/FL_RL_FUZZY_SCIENTIFIC_AUDIT.md\` and
 \`docs/METRICS_STATISTICAL_AND_MANUSCRIPT_AUDIT.md\` for detailed evidence.
 
+## Follow-up: MDPI AI package dependencies checked (2026-10-14)
+
+The source-only checker [audit_mdpi_source_package.py](../scripts/analysis/audit_mdpi_source_package.py)
+verified 34 graphic references have corresponding files and found no
+undefined citation keys against the checked `paper/references.bib`.
+This does NOT establish a compilable or publishable manuscript. The
+source is still IEEEtran and uses its bibliography style. See
+[MDPI_AI_EDITORIAL_CONVERSION_PLAN.md](MDPI_AI_EDITORIAL_CONVERSION_PLAN.md)
+for the publisher's template links, incompatible frontmatter and
+required author/editor decisions. **The submission venue has not been
+confirmed by the authors**; do not convert the original paper yet.
+
 ## Machine-readable gate report
 
 Run from the repository root:
