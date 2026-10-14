@@ -96,6 +96,21 @@ class FinalReadinessAuditTests(unittest.TestCase):
                 out = module.inspect_repository(root)
             self.assertEqual(out["readiness"], "NOT_READY_FOR_SUBMISSION")
 
+    def test_separate_mdpi_draft_is_only_static_implementation_evidence(self):
+        with tempfile.TemporaryDirectory() as t:
+            root = specimen(Path(t))
+            mdpi = root / "paper/mdpi_ai/main.tex"
+            mdpi.parent.mkdir(parents=True)
+            mdpi.write_text(
+                r"\documentclass[ai,article,submit,moreauthors,pdftex]{Definitions/mdpi}" +
+                "\n" + r"\begin{document}Draft only\end{document}")
+            gate = ids(module.inspect_repository(root))[
+                "SEPARATE_MDPI_AI_FORMATTING_DRAFT"]
+            self.assertEqual(gate["status"], module.PASS)
+            self.assertTrue(gate["evidence"]["mdpi_ai_class_declared"])
+            self.assertEqual(module.inspect_repository(root)["readiness"],
+                             "NOT_READY_FOR_SUBMISSION")
+
     def test_template_matching_and_no_revision_marks(self):
         with tempfile.TemporaryDirectory() as t:
             root = specimen(Path(t), paper_class=r"\documentclass[ai,article,submit]{Definitions/mdpi}",
