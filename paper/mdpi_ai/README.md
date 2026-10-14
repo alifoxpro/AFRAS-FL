@@ -88,6 +88,28 @@ The test does **not** perform \`pdflatex\` compilation, open PDF figures,
 or authenticate published results. A separate local compilation and
 human page-by-page review are still necessary.
 
+## Clean reading colors and mandatory template placeholders
+
+All reviewer-added text (72 `\\rev{...}` markers) now **prints in
+regular black**. One `\\strk{...}` deletion is hidden in the PDF,
+but its argument remains unchanged in the LaTeX source. Two red
+numeric diagram accents and the one red proposition text group
+are displayed in black. Figure-background accent fills are not text
+and are intentionally preserved. The source-side scientific wording,
+figures, formulas and historical values have not been rewritten.
+
+Publisher volume, issue, article number, publication year and dates
+are included as **formatting-only placeholders** to satisfy the MDPI
+template class. They do not indicate that the work is accepted or
+published. Replace them only according to the publisher's final
+instructions; do not assert a fabricated DOI, acceptance or issue.
+
+The included/uploaded MDPI class can be smoke-tested independently,
+but GitHub Actions does NOT compile a faithful whole-paper PDF because
+the repository's figure tree and publisher's licensed Definitions/
+files are not bundled into this editable draft. A full author-side
+compile must use the actual 34 figure assets and official MDPI class.
+
 ## Editorial changes implemented
 
 - MDPI class: \`\\documentclass[ai,article,submit,moreauthors,pdftex]{Definitions/mdpi}\`
