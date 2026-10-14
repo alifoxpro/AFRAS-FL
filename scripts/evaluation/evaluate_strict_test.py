@@ -20,7 +20,7 @@ sys.path.insert(0, str(REPO / "training"))
 
 from scripts.data.strict_test_guard import PHASES, sha256_file, validate_frozen_run
 from scripts.data.label_evidence import validate_raw_rows
-from scripts.training.strict_fed_core import decision_metrics, jain_fairness, binary_intrusion_metrics
+from scripts.training.strict_fed_core import (decision_metrics, jain_fairness, binary_intrusion_metrics, pooled_binary_counts)
 from scripts.training.train_mamba_strict import load_features
 from scripts.training.train_federated_strict import build_states, teacher_predictions
 from train_isolated import MambaOnlyModel, create_windows
@@ -73,32 +73,25 @@ def evaluate_phase(phase, checkpoint, test_clients, device, batch_size):
     model = DQNNetwork(state_dim=28, n_actions=3).to(device)
     model.load_state_dict(torch.load(checkpoint, weights_only=True, map_location=device))
     per_client, matrix, scores = {}, np.zeros((3, 3), dtype=np.int64), []
-    binary_counts = {"TP": 0, "FN": 0, "FP": 0, "TN": 0}
-    has_binary = False
+    binary_reports = []
     for link, (states, truth, binary) in sorted(test_clients.items()):
         pred = predict_actions(model, states, device, batch_size)
         report = decision_metrics(truth.tolist(), pred)
         if binary is not None:
             binary_report = binary_intrusion_metrics(binary, pred)
             report["binary_ids"] = binary_report
-            has_binary = True
-            for k in binary_counts:
-                binary_counts[k] += binary_report[k]
+        else:
+            binary_report = None
+        binary_reports.append(binary_report)
         per_client[link] = report
         scores.append(report["action_success_rate"])
         matrix += np.asarray(report["severity_action_counts"], dtype=np.int64)
     total = int(matrix.sum())
     correct = int(matrix[0, 2] + matrix[1, 1] + matrix[2, 0])
-    TP, FN, FP, TN = (binary_counts[k] for k in ("TP", "FN", "FP", "TN"))
-    binary_pooled = None
-    if has_binary:
-        binary_pooled = {
-            **binary_counts,
-            "FPR": FP / (FP + TN) if FP + TN else None,
-            "FNR": FN / (FN + TP) if FN + TP else None,
-            "TPR": TP / (TP + FN) if TP + FN else None,
-            "TNR": TN / (TN + FP) if TN + FP else None,
-        }
+    binary_pooled = pooled_binary_counts(
+        binary_reports, expected_clients=len(test_clients))
+    if binary_pooled is not None and binary_pooled["n"] != total:
+        raise ValueError("Pooled binary labels do not cover every evaluated window")
     return {
         "phase": phase,
         "checkpoint_sha256": sha256_file(checkpoint),
