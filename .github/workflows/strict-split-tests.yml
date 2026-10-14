@@ -26,3 +26,11 @@ jobs:
         run: |
           python scripts/analysis/audit_metrics_statistics.py --manuscript paper/main.tex --output /tmp/afras_manuscript_statistics_audit.json
           python -c 'import json; d=json.load(open("/tmp/afras_manuscript_statistics_audit.json")); print("Scientific audit (non-training):", d["critical_count"], "critical findings,", len(d["findings"]), "total findings"); print("Seed statistics:", d["seed_level_statistics_status"])'
+
+      - name: Store source-only manuscript statistics audit (not experiment results)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mdpi-source-statistical-audit
+          path: /tmp/afras_manuscript_statistics_audit.json
+          retention-days: 30
+          if-no-files-found: error
