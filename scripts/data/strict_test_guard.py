@@ -12,7 +12,8 @@ from scripts.data.label_evidence import validate_evidence_file
 from scripts.data.feature_provenance import validate_train_feature_selection
 
 STAGE3_SCHEMA = "strict-stage3-train-val-only-v1"
-STAGE4_SCHEMA = "strict-fed-contextual-bandit-v1"
+STAGE4_SCHEMA = "strict-fed-contextual-bandit-v2"
+FUZZY_SCHEMA = "afras-strict-train-only-raw-scale-fuzzy-v1"
 SPLIT_SCHEMA = "afras-fl-strict-ordered-split-v1"
 PHASES = ("B2_FedAvg", "B3_FedProx", "B4_TrainOnlyFuzzy_FedProx")
 
@@ -54,6 +55,14 @@ def validate_frozen_run(dataset, seed, split_root, stage3_root, stage4_root, fea
              "Unverified link/MDP settings")
     _require(run.get("source_experiment") == "new protocol, NOT historical manuscript output",
              "Unexpected historical/experimental provenance")
+    _require(run.get("fuzzy_rule_schema") == FUZZY_SCHEMA and
+             run.get("fuzzy_rule_transform") ==
+                 "train_standardized_window_means_no_extra_fit",
+             "Stage 4 fuzzy-rule scale/protocol is not independently pinned")
+    _require(run.get("federated_aggregation") ==
+                 "verified_size_weighted_fedavg_float64_reduce" and
+             run.get("federated_privacy_guarantee") is False,
+             "Unverified FL aggregation or privacy claim")
     _require(run.get("split_manifest_sha256") == sha256_file(split_file),
              "Split manifest modified after Stage 4")
     settings = run.get("settings", {})
@@ -153,9 +162,29 @@ def validate_frozen_run(dataset, seed, split_root, stage3_root, stage4_root, fea
             _require(partitions.get(part, {}).get("sha256") ==
                      teacher_meta.get(part + "_sha256"),
                      f"Split lineage mismatch: {link}/{part}")
+        rules_provenance = run.get("fuzzy_train_only", {}).get(link, {})
         _require(run.get("client_train_counts", {}).get(link, 0) > 0 and
-                 run.get("fuzzy_train_only", {}).get(link, {}).get("train_only") is True,
-                 f"TRAIN-only federated setup not verified: {link}")
+                 rules_provenance.get("train_only") is True and
+                 rules_provenance.get("feature_columns") == [0, 1] and
+                 rules_provenance.get("fuzzy_protocol") == FUZZY_SCHEMA and
+                 isinstance(rules_provenance.get("training_windows_used_for_rules"), int) and
+                 rules_provenance["training_windows_used_for_rules"] > 0,
+                 f"TRAIN-only federated/fuzzy setup not verified: {link}")
+        rules_file = stage4_dir / "TRAIN_RULES" / link / "TRAIN_RULES.json"
+        _require(rules_file.is_file() and
+                 sha256_file(rules_file) == rules_provenance.get("rule_manifest_sha256"),
+                 f"TRAIN-only fuzzy rule artifact changed: {link}")
+        rules = _read(rules_file)
+        _require(rules.get("schema") == FUZZY_SCHEMA and
+                 rules.get("partition") == "TRAIN" and
+                 rules.get("feature_names") ==
+                    ["train_feature_0_mean", "train_feature_1_mean"] and
+                 rules.get("n_train") ==
+                     rules_provenance["training_windows_used_for_rules"] and
+                 rules.get("n_rules") == rules_provenance.get("rules") and
+                 rules.get("feature_scale") ==
+                    "stage3_train_standardized_window_means_no_extra_fit",
+                 f"Fuzzy rules are incompatible with frozen Stage 4: {link}")
         test_meta = partitions.get("test", {})
         _require(test_meta.get("relative_path") == "test/" + link + ".csv",
                  f"Unexpected TEST path: {link}")
