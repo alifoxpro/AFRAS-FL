@@ -98,6 +98,27 @@ def inspect_repository(root, target_journal="mdpi-ai", seed=42):
         "Prepare a separate properly templated manuscript only with researcher approval; "
         "do NOT silently overwrite paper/main.tex.")
 
+    if target_journal == "mdpi-ai":
+        separate_draft = root / "paper/mdpi_ai/main.tex"
+        available = separate_draft.is_file()
+        draft_tex = separate_draft.read_text(encoding="utf-8") if available else ""
+        mdpi_ai_class = (
+            r"\documentclass[ai,article,submit,moreauthors,pdftex]"
+            r"{Definitions/mdpi}" in draft_tex)
+        gate(
+            "SEPARATE_MDPI_AI_FORMATTING_DRAFT",
+            PASS if mdpi_ai_class else BLOCKED,
+            "editorial_preparation",
+            "A separate MDPI AI source draft exists, but class distribution, "
+            "successful compilation, contributor approval and numerical evidence "
+            "remain independent requirements; do not change IEEE source.",
+            {"separate_draft_present": available,
+             "mdpi_ai_class_declared": mdpi_ai_class,
+             "source_ieee_manuscript_unchanged_by_this_audit": True},
+            "Obtain the official current MDPI Definitions folder, run local "
+            "pdfLaTeX and BibTeX, inspect the PDF, and confirm editorial "
+            "declarations with all coauthors before submission.")
+
     has_redlines = bool(re.search(r"\\(?:rev|strk)\s*\{", tex))
     gate(
         "TRACKED_REVISION_MARKUP", REVIEW if has_redlines else PASS, "manuscript",
