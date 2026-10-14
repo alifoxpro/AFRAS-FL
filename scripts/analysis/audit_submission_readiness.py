@@ -87,14 +87,14 @@ def inspect_repository(root, target_journal="mdpi-ai", seed=42):
 
     expected_template = "mdpi" if target_journal == "mdpi-ai" else "ieee"
     is_ieee = bool(re.search(r"\\documentclass(?:\[[^\]]*\])?\{IEEEtran\}", tex))
-    is_mdpi = bool(re.search(r"\\documentclass(?:\[[^\]]*\])?\{Definitions\}", tex))
+    is_mdpi = bool(re.search(r"\\documentclass(?:\[[^\]]*\])?\{(?:Definitions/)?mdpi\}", tex))
     matches = is_mdpi if expected_template == "mdpi" else is_ieee
     gate(
         "TARGET_JOURNAL_TEMPLATE", PASS if matches else BLOCKED, "manuscript",
         "Journal class file must match the requested target, not just render.",
         {"requested_journal": target_journal,
          "detected_class": "IEEEtran" if is_ieee else
-                           ("Definitions" if is_mdpi else "unknown")},
+                           ("Definitions/mdpi" if is_mdpi else "unknown")},
         "Prepare a separate properly templated manuscript only with researcher approval; "
         "do NOT silently overwrite paper/main.tex.")
 
