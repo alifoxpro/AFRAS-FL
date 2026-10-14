@@ -16,18 +16,18 @@
 - **Editorial conversion requirements:**
   \`docs/MDPI_AI_EDITORIAL_CONVERSION_PLAN.md\`
 
-The scientific body, equations, tables, results, label references and
-citations have been **preserved verbatim** from the IEEE source. The
-original abstract and keywords are preserved verbatim as well. The
-only changed LaTeX material is journal-specific front matter, packages,
-environment aliases, graphic and bibliography *paths*, back-matter
-format and explicit TODO comments.
+The scientific wording, equations, tables, results, figure paths, label
+references and citations are retained from the IEEE source. The only
+changes INSIDE the scientific body are three explicit red-to-black
+text-color commands (two diagram values and one theory group). Abstract
+and keywords are unmodified. Journal-specific wrappers also differ.
 
-The CI asserts equality of the entire original scientific body and new
-scientific body, byte-for-byte after isolating their LaTeX wrappers.
-Changing even a historical statistic, a body figure path, an equation,
-or a body citation causes the conversion test to fail. Historical
-scientific claims remain **unverified**, not endorsed or corrected.
+The CI confirms scientific-body equality after reversing **only three
+explicitly whitelisted cosmetic red-to-black text-color commands**.
+Changing a numerical result, equation, citation or figure path fails the
+check. Reviewer additions now print in black; struck deletions are
+hidden in PDF output but remain in the source. Historical scientific
+claims remain **unverified**, not endorsed or corrected.
 
 ## How to compile in a separate folder
 
@@ -81,8 +81,9 @@ From the repository root:
       --source paper/main.tex \
       --converted paper/mdpi_ai/main.tex
 
-A SHA-256 match for the complete scientific body, matching abstract,
-34 figure inclusion references and retained citations is required.
+A SHA-256 match for the scientific body after exactly three cosmetic
+color substitutions are normalized, matching abstract, 34 figure
+references and retained citations is required.
 The test does **not** perform \`pdflatex\` compilation, open PDF figures,
 or authenticate published results. A separate local compilation and
 human page-by-page review are still necessary.
@@ -109,10 +110,11 @@ with the downloaded current MDPI *AI* \`template.tex\` before submission.
 
 - The MDPI class/style files must be obtained from the official MDPI
   website and the new source **must actually compile** with them.
-- The archived source is an IEEE review revision with \`\\rev{}\`
-  (red additions) and \`\\strk{}\` (struck text). They are intentionally
-  still visible in the new source. Authors/editors must decide if a clean
-  final copy is appropriate. No tracked changes were silently removed.
+- The archived IEEE source contains reviewer additions and struck
+  deletions. In **paper/mdpi_ai/main.tex**, additions are rendered in
+  standard black and struck deletions are suppressed in the PDF only.
+  The commands and their arguments remain available in the LaTeX source
+  and the IEEE original is preserved unchanged.
 - \`\\authorcontributions\`, \`\\funding\`, \`\\dataavailability\`,
   \`\\conflictsofinterest\`, ethics/consent (as applicable), acknowledgments
   and any necessary disclosures are author decisions. They are
