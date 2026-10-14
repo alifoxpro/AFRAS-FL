@@ -4,6 +4,26 @@ This is a re-specified reward for an action-exogenous contextual-bandit
 experiment; it is NOT guaranteed to match the manuscript's historical MOSAR.
 """
 import math
+from numbers import Integral
+
+
+def normalized_client_weights(sizes, expected_clients=None):
+    """Validate FedAvg client counts; never normalize invalid/zero populations."""
+    values = list(sizes)
+    if not values or (expected_clients is not None and
+                      len(values) != expected_clients):
+        raise ValueError("Federated client/count cardinality mismatch")
+    if any(not isinstance(n, Integral) or isinstance(n, bool) or n <= 0
+           for n in values):
+        raise ValueError("FedAvg weights require positive integer TRAIN sample counts")
+    total = sum(values)
+    weights = [n / total for n in values]
+    if any(not math.isfinite(w) or w <= 0 for w in weights):
+        raise ValueError("Nonfinite or zero FedAvg client weight")
+    if not math.isclose(math.fsum(weights), 1.0, abs_tol=1e-12):
+        raise ValueError("FedAvg weights failed unit-sum check")
+    return weights
+
 
 ACTIONS = ("ALLOW", "RATE_LIMIT", "BLOCK")
 SEVERITIES = ("High", "Medium", "Low")
