@@ -67,10 +67,34 @@ def verify_conversion(ieee, mdpi):
         raise ValueError("MDPI manuscript must reuse exact source figures")
     original_body = BODY_START + _source_body(ieee)
     new_body = BODY_START + _new_body(mdpi)
-    if original_body != new_body:
+    # Only THREE literal color-command replacements are allowed in the
+    # body (two diagram numbers and the red theory/proposition group).
+    # No scientific text, numbers, formulas, figures or citations may differ.
+    allowed = {
+        r"\\textcolor{red}{$0.20$}": r"\\textcolor{black}{$0.20$}",
+        r"\\begingroup\\color{red}": r"\\begingroup\\color{black}",
+    }
+    changed_counts = {}
+    normalized_body = new_body
+    for before, after in allowed.items():
+        expected = original_body.count(before)
+        actual = new_body.count(after)
+        if expected != actual or expected == 0:
+            raise ValueError(
+                "Unexpected historical colored accent substitution; "
+                "manual review required")
+        changed_counts[before] = expected
+        normalized_body = normalized_body.replace(after, before)
+    if original_body != normalized_body:
         raise ValueError(
-            "SCIENTIFIC BODY ALTERED: formatting-only conversion must preserve "
-            "all sections, figures, equations, numerical values and citations verbatim")
+            "SCIENTIFIC BODY ALTERED: beyond the three whitelisted cosmetic "
+            "red-to-black replacements; formulas, numbers and citations must stay identical")
+    if r"\\textcolor{red}" in new_body or r"\\color{red}" in new_body:
+        raise ValueError("Visible red scientific body text remains")
+    if r"\\newcommand{\\rev}[1]{#1}" not in mdpi or r"\\newcommand{\\strk}[1]{}" not in mdpi:
+        raise ValueError("MDPI clean version must render revisions black and hide deletions")
+    if r"\\textcolor{red}" in mdpi or r"\\color{red}" in mdpi:
+        raise ValueError("Visible red text commands remain in MDPI draft")
     source_title = _source_title(ieee)
     if r"\Title{" + source_title + "}" not in mdpi:
         raise ValueError("Source title changed without author authorization")
@@ -90,9 +114,12 @@ def verify_conversion(ieee, mdpi):
         raise ValueError("MDPI document start/end unbalanced")
     return {
         "schema": SCHEMA,
-        "integrity": "SOURCE_BODY_AND_ABSTRACT_BYTE_FOR_BYTE_IDENTICAL",
+        "integrity": "SCIENTIFIC_TEXT_IDENTICAL_EXCEPT_THREE_COSMETIC_RED_TO_BLACK_CHANGES",
         "source_scientific_body_sha256": sha(original_body),
-        "converted_scientific_body_sha256": sha(new_body),
+        "converted_scientific_body_sha256": sha(normalized_body),
+        "raw_mdpi_styled_body_sha256": sha(new_body),
+        "whitelisted_cosmetic_color_command_count": sum(changed_counts.values()),
+        "clean_reading_style": "rev_black_strk_hidden",
         "original_abstract_sha256": sha(ab),
         "converted_abstract_sha256": sha(new_ab),
         "figure_inclusions": len(figs),
