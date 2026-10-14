@@ -38,11 +38,21 @@ class FederatedRewardTests(unittest.TestCase):
         self.assertEqual(val["false_block_on_low"], 0.5)
         self.assertEqual(val["false_allow_on_high"], 0.0)
         self.assertEqual(val["severity_action_counts"][2], [1, 0, 1])
+        self.assertAlmostEqual(val["balanced_severity_action_accuracy_present_classes"],
+                               (1 + 1 + .5) / 3)
+        self.assertAlmostEqual(val["macro_f1_present_severity_classes"],
+                               (2/3 + 1 + 2/3) / 3)
+        self.assertAlmostEqual(val["per_severity"]["High"]["precision"], .5)
+        self.assertAlmostEqual(val["per_severity"]["Low"]["recall"], .5)
 
     def test_absent_classes_are_null(self):
         val = decision_metrics([1, 1], [1, 0])
         self.assertIsNone(val["false_block_on_low"])
         self.assertIsNone(val["false_allow_on_high"])
+        self.assertEqual(val["per_severity"]["Low"]["support"], 0)
+        self.assertIsNone(val["per_severity"]["Low"]["recall"])
+        self.assertEqual(val["macro_averaging_policy"],
+                         "Present ground-truth severity classes only; missing-class metrics null")
 
 
 if __name__ == "__main__":
