@@ -88,10 +88,33 @@ def fixture(home):
             "best_round_val_only": 3, "best_val_mean_action_success": 0.6,
             "validation_only": True,
         })
+    fuzzy_links = {}
+    for link in split["links"]:
+        folder = run_path / "TRAIN_RULES" / link
+        folder.mkdir(parents=True)
+        rules_file = folder / "TRAIN_RULES.json"
+        rules_file.write_text(json.dumps({
+            "schema": guard.FUZZY_SCHEMA, "partition": "TRAIN",
+            "feature_names": ["train_feature_0_mean", "train_feature_1_mean"],
+            "n_train": 78, "n_rules": 1,
+            "feature_scale": "stage3_train_standardized_window_means_no_extra_fit",
+            "membership_params": {}, "rules": [],
+        }))
+        fuzzy_links[link] = {
+            "train_only": True, "feature_columns": [0, 1],
+            "fuzzy_protocol": guard.FUZZY_SCHEMA,
+            "training_windows_used_for_rules": 78,
+            "rules": 1,
+            "rule_manifest_sha256": guard.sha256_file(rules_file),
+        }
     run = {
         "schema": guard.STAGE4_SCHEMA, "dataset": ds,
         "test_access": "NONE", "mu_link_effective": 0,
         "discount_gamma": 0,
+        "fuzzy_rule_schema": guard.FUZZY_SCHEMA,
+        "fuzzy_rule_transform": "train_standardized_window_means_no_extra_fit",
+        "federated_aggregation": "verified_size_weighted_fedavg_float64_reduce",
+        "federated_privacy_guarantee": False,
         "source_experiment": "new protocol, NOT historical manuscript output",
         "split_manifest_sha256": guard.sha256_file(out / "manifest.json"),
         "settings": {
@@ -103,7 +126,7 @@ def fixture(home):
         "client_stage3_scaler_sha256": scaler_map,
         "client_stage3_provenance_sha256": provenance_map,
         "client_train_counts": {link: 78 for link in split["links"]},
-        "fuzzy_train_only": {link: {"train_only": True} for link in split["links"]},
+        "fuzzy_train_only": fuzzy_links,
     }
     (run_path / "RUN_PROVENANCE.json").write_text(json.dumps(run))
     return ds, seed, split_root, stage3_root, stage4_root, feature_json
@@ -166,6 +189,34 @@ class FrozenTESTGuards(unittest.TestCase):
                 for file in (f[2] / f[0] / split).glob("*.csv"):
                     file.unlink()
             self.assertEqual(len(self.validate(f)["clients"]), 5)
+
+    def test_rejects_modified_train_only_fuzzy_rule_file(self):
+        with tempfile.TemporaryDirectory() as t:
+            f = fixture(Path(t))
+            target = f[4] / f[0] / "seed_42" / "TRAIN_RULES" / "Link_1_Core" / "TRAIN_RULES.json"
+            target.write_text(target.read_text() + " ")
+            with self.assertRaisesRegex(ValueError, "fuzzy rule artifact changed"):
+                self.validate(f)
+
+    def test_rejects_unpinned_inference_scale(self):
+        with tempfile.TemporaryDirectory() as t:
+            f = fixture(Path(t))
+            path = f[4] / f[0] / "seed_42" / "RUN_PROVENANCE.json"
+            record = json.loads(path.read_text())
+            record["fuzzy_rule_transform"] = "unfrozen_validation_scaler"
+            path.write_text(json.dumps(record))
+            with self.assertRaisesRegex(ValueError, "scale/protocol"):
+                self.validate(f)
+
+    def test_rejects_legacy_stage4_protocol(self):
+        with tempfile.TemporaryDirectory() as t:
+            f = fixture(Path(t))
+            path = f[4] / f[0] / "seed_42" / "RUN_PROVENANCE.json"
+            record = json.loads(path.read_text())
+            record["schema"] = "strict-fed-contextual-bandit-v1"
+            path.write_text(json.dumps(record))
+            with self.assertRaisesRegex(ValueError, "Stage 4 dataset/protocol mismatch"):
+                self.validate(f)
 
     def test_detects_modified_stage3_provenance(self):
         with tempfile.TemporaryDirectory() as t:
