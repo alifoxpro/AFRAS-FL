@@ -88,8 +88,12 @@ class StrictFuzzyScaleTests(unittest.TestCase):
             fit_train_only_rules(x, y, ["a", "b"])
         with self.assertRaisesRegex(ValueError, "Two finite"):
             fit_train_only_rules([[0, 1, 2]] * 70, [1]*70, ["a", "b"])
+        x, y = sample_data()
         with self.assertRaisesRegex(ValueError, "feature names"):
             fit_train_only_rules(x, y, ["a", "a"])
+        y[0] = 0.5
+        with self.assertRaisesRegex(ValueError, "Unknown TRAIN severity"):
+            fit_train_only_rules(x, y, ["a", "b"])
 
     def test_no_unsupported_rule_confidence_or_support(self):
         x, y = sample_data()
