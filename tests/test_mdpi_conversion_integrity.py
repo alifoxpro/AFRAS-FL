@@ -18,7 +18,11 @@ class MDPIConversionIntegrityTests(unittest.TestCase):
 
     def test_current_repo_conversion_retains_full_scientific_body(self):
         audit = mod.verify_conversion(self.source, self.conversion)
-        self.assertEqual(audit["integrity"], "SOURCE_BODY_AND_ABSTRACT_BYTE_FOR_BYTE_IDENTICAL")
+        self.assertEqual(audit["integrity"], "SCIENTIFIC_TEXT_IDENTICAL_EXCEPT_THREE_COSMETIC_RED_TO_BLACK_CHANGES")
+        self.assertEqual(audit["whitelisted_cosmetic_color_command_count"], 3)
+        self.assertEqual(audit["clean_reading_style"], "rev_black_strk_hidden")
+        self.assertNotIn(r"\textcolor{red}", self.conversion)
+        self.assertNotIn(r"\color{red}", self.conversion)
         self.assertEqual(audit["figure_inclusions"], 34)
         self.assertEqual(audit["source_scientific_body_sha256"],
                          audit["converted_scientific_body_sha256"])
@@ -65,6 +69,20 @@ class MDPIConversionIntegrityTests(unittest.TestCase):
                                    self.conversion.replace(
                                        r"\bibliography{../references}",
                                        r"\bibliography{invented_source}", 1))
+
+    def test_red_style_or_deleted_text_not_resurrected(self):
+        changed = self.conversion.replace(
+            r"\\newcommand{\\rev}[1]{#1}",
+            r"\\newcommand{\\rev}[1]{\\textcolor{red}{#1}}", 1)
+        self.assertNotEqual(changed, self.conversion)
+        with self.assertRaisesRegex(ValueError, "render revisions black"):
+            mod.verify_conversion(self.source, changed)
+        altered = self.conversion.replace(
+            r"\\newcommand{\\strk}[1]{}",
+            r"\\newcommand{\\strk}[1]{#1}", 1)
+        self.assertNotEqual(altered, self.conversion)
+        with self.assertRaisesRegex(ValueError, "hide deletions"):
+            mod.verify_conversion(self.source, altered)
 
     def test_no_figure_writes_or_original_mutation(self):
         source_path = ROOT / "paper/main.tex"
