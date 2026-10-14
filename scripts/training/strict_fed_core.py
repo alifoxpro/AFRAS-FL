@@ -90,13 +90,42 @@ def decision_metrics(severities, actions):
     correct = sum(act == ACTION_FOR_SEVERITY[s] for s, act in zip(y, a))
     lows = [act for s, act in zip(y, a) if s == 2]
     highs = [act for s, act in zip(y, a) if s == 0]
+    counts = [[sum((s == ss and act == aa) for s, act in zip(y, a))
+               for aa in range(3)] for ss in range(3)]
+    per_severity = {}
+    present_recalls, present_f1 = [], []
+    for severity, name in enumerate(SEVERITIES):
+        target_action = ACTION_FOR_SEVERITY[severity]
+        true_positive = counts[severity][target_action]
+        support = sum(counts[severity])
+        predicted_as_class = sum(counts[actual][target_action]
+                                 for actual in range(3))
+        false_positive = predicted_as_class - true_positive
+        false_negative = support - true_positive
+        recall = _defined_ratio(true_positive, support)
+        precision = _defined_ratio(true_positive, predicted_as_class)
+        f1 = _defined_ratio(2 * true_positive,
+                            2 * true_positive + false_positive + false_negative)
+        per_severity[name] = {
+            "support": support, "precision": precision,
+            "recall": recall, "f1": f1,
+        }
+        if support:
+            present_recalls.append(recall)
+            present_f1.append(f1)
     return {
         "n": count,
         "action_success_rate": correct / count,
+        "balanced_severity_action_accuracy_present_classes":
+            sum(present_recalls) / len(present_recalls),
+        "macro_f1_present_severity_classes":
+            sum(present_f1) / len(present_f1),
+        "per_severity": per_severity,
+        "macro_averaging_policy":
+            "Present ground-truth severity classes only; missing-class metrics null",
         "false_block_on_low": sum(act == 2 for act in lows) / len(lows) if lows else None,
         "false_allow_on_high": sum(act == 0 for act in highs) / len(highs) if highs else None,
-        "severity_action_counts": [[sum((s == ss and act == aa) for s, act in zip(y, a))
-                                     for aa in range(3)] for ss in range(3)],
+        "severity_action_counts": counts,
     }
 
 
