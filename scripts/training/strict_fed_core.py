@@ -100,6 +100,51 @@ def decision_metrics(severities, actions):
     }
 
 
+def _defined_ratio(top, bottom):
+    """Undefined diagnostic rates are None, NEVER a fabricated zero."""
+    return top / bottom if bottom else None
+
+
+def pooled_binary_counts(reports, expected_clients=None):
+    """Sum independently audited client confusion counts, refusing mixed lineage.
+
+    reports is a per-client sequence of binary_intrusion_metrics() outputs,
+    OR None when original Attack/Benign source evidence is unavailable.
+    Partial binary coverage across clients is refused.
+    """
+    items = list(reports)
+    if not items or (expected_clients is not None and len(items) != expected_clients):
+        raise ValueError("Expected a complete set of client binary evidence")
+    if all(report is None for report in items):
+        return None
+    if any(report is None for report in items):
+        raise ValueError("Partial original binary attack labels across TEST clients")
+    totals = {}
+    for name in ("TP", "FN", "FP", "TN"):
+        values = [record.get(name) if isinstance(record, dict) else None
+                  for record in items]
+        if any(type(value) is not int or value < 0 for value in values):
+            raise ValueError("Invalid per-client binary confusion counts")
+        totals[name] = sum(values)
+    tp, fn, fp, tn = (totals[key] for key in ("TP", "FN", "FP", "TN"))
+    if sum(totals.values()) == 0:
+        raise ValueError("Empty binary confusion totals")
+    return {
+        **totals,
+        "FPR": _defined_ratio(fp, fp + tn),
+        "FNR": _defined_ratio(fn, fn + tp),
+        "TPR": _defined_ratio(tp, tp + fn),
+        "TNR": _defined_ratio(tn, tn + fp),
+        "accuracy": _defined_ratio(tp + tn, tp + tn + fp + fn),
+        "precision_attack": _defined_ratio(tp, tp + fp),
+        "recall_attack": _defined_ratio(tp, tp + fn),
+        "f1_attack": _defined_ratio(2 * tp, 2 * tp + fp + fn),
+        "n": tp + fn + fp + tn,
+        "binary_attack_prediction_rule": "ALLOW=benign; RATE_LIMIT/BLOCK=attack",
+        "requires_raw_label_evidence": True,
+    }
+
+
 def binary_intrusion_metrics(is_attack, actions):
     """Only when raw Attack/Benign provenance exists.
 
@@ -123,6 +168,11 @@ def binary_intrusion_metrics(is_attack, actions):
         "FNR": FN / (FN + TP) if FN + TP else None,
         "TPR": TP / (TP + FN) if TP + FN else None,
         "TNR": TN / (TN + FP) if TN + FP else None,
+        "accuracy": (TP + TN) / (TP + TN + FP + FN),
+        "precision_attack": _defined_ratio(TP, TP + FP),
+        "recall_attack": _defined_ratio(TP, TP + FN),
+        "f1_attack": _defined_ratio(2 * TP, 2 * TP + FP + FN),
+        "n": TP + FN + FP + TN,
         "binary_attack_prediction_rule": "ALLOW=benign; RATE_LIMIT/BLOCK=attack",
         "requires_raw_label_evidence": True,
     }
