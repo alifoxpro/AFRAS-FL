@@ -62,7 +62,7 @@ jobs:
       - name: Enforce scientific-text identity in separate MDPI AI draft
         run: |
           python scripts/analysis/validate_mdpi_conversion.py --source paper/main.tex --converted paper/mdpi_ai/main.tex --output /tmp/mdpi_scientific_conversion_integrity.json
-          python -c 'import json; r=json.load(open("/tmp/mdpi_scientific_conversion_integrity.json")); assert r["figure_inclusions"] == 34; assert r["source_scientific_body_sha256"] == r["converted_scientific_body_sha256"]; print("MDPI body preserved byte-for-byte; all", r["figure_inclusions"], "figure refs retained; no scientific result modified.")'
+          python -c 'import json; r=json.load(open("/tmp/mdpi_scientific_conversion_integrity.json")); assert r["figure_inclusions"] == 34; assert r["source_scientific_body_sha256"] == r["converted_scientific_body_sha256"]; assert r["whitelisted_cosmetic_color_command_count"] == 3; assert r["clean_reading_style"] == "rev_black_strk_hidden"; print("MDPI science preserved modulo 3 red-to-black display-only changes; all", r["figure_inclusions"], "figure refs retained; no numerical result modified.")'
       - name: Archive MDPI source-conversion audit only
         uses: actions/upload-artifact@v4
         with:
