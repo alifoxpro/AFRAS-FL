@@ -35,7 +35,15 @@ def fit_train_only_rules(states, labels, feature_names, min_support=10,
                          min_confidence=0.50):
     """Fit deterministic rules from TRAIN ONLY, returning JSON-safe package."""
     x = [tuple(float(v) for v in row) for row in states]
-    y = [int(z) for z in labels]
+    y = []
+    for z in labels:
+        try:
+            value = float(z)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Unknown TRAIN severity class") from exc
+        if isinstance(z, bool) or not math.isfinite(value) or value not in (0.0, 1.0, 2.0):
+            raise ValueError("Unknown TRAIN severity class")
+        y.append(int(value))
     if len(x) != len(y) or not x:
         raise ValueError("Aligned nonempty TRAIN states and severity labels required")
     if not isinstance(feature_names, (tuple, list)) or len(feature_names) != 2:
