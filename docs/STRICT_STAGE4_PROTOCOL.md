@@ -15,16 +15,27 @@ Not equivalent to the historical manuscript's published tables.
   11 feature standard deviations, and 3 Mamba softmax probabilities.
   All state positions have the same semantic meaning across federated clients.
   No embedding PCA is fitted on pooled or held-out data.
-- The original 7-phase \`AFRASFLPipeline\` is **fitted only on TRAIN** feature
-  columns 0 and 1 and true TRAIN severity labels; no VAL/TEST rule mining.
-  This new *fixed two-feature* design is different from the manuscript's
-  variance-selected features; audit methodological compatibility.
+- **Stage 4 v2** no longer uses the historical seven-phase AFRASFLPipeline.
+  The legacy training rule pipeline normalized/denoised TRAIN inputs a second
+  time, but rule inference used the original state coordinates: a feature-scale
+  mismatch that can distort ALLOW/RATE_LIMIT/BLOCK actions.
+- A NEW deterministic nine-cell Gaussian fuzzy rule bank is instead fitted
+  on only the first two Stage 3 TRAIN-standardized state means, and these
+  exact coordinates are passed to inference. No additional normalization,
+  wavelet, NURBS-SMOTE or VAL/TEST rule mining is performed. It must NEVER
+  be described as reproduction of the full historical seven-phase method.
 - Independent B2 FedAvg, B3 FedProx, B4 FedProx + action-dependent fuzzy
   rewards start from the same seeded Q-network initialization. Their
   respective best rounds are selected using **VAL only**.
-- Rewards are fully specified in \`strict_fed_core.py\` and no longer use
-  nonstationary Q-magnitude confidence. Latency is an assumed action-cost
-  **proxy**, not measured milliseconds.
+  FedAvg checks positive integer sample counts and identical finite tensor
+  names, shapes, dtypes and devices, with sample-weighted float64 accumulation.
+  FedProx penalizes local deviation from the frozen global parameters.
+  These are code-level invariants, NOT claims of secure aggregation or privacy.
+- Rewards are fully specified in strict_fed_core.py. Latency is an assumed
+  action-cost **proxy**, not measured milliseconds. Teacher confidence and
+  accuracy terms are action-independent within each state, so they cannot
+  separately alter the preferred action; they are NOT evidence of five
+  independently optimized action objectives.
 - The DQN-shaped Q-network is trained for a **contextual bandit**
   (\`discount_gamma=0\`) because action choice has not been shown to control
   the next state. Do not claim long-horizon RL, PBRS invariance, or deployed SDN
@@ -35,8 +46,9 @@ Not equivalent to the historical manuscript's published tables.
 - Only *action-success rate* and two explicitly named error rates are reported.
   Without verification that Low is benign and High denotes all true attacks,
   they cannot be called binary IDS FPR/FNR.
-- Every run creates fresh output \`experiments/strict_stage4/<dataset>/seed_<seed>\`
-  and refuses overwrites, so prior legacy checkpoints cannot be mixed in.
+- Every run creates fresh output experiments/strict_stage4/<dataset>/seed_<seed>
+  and refuses overwrites. The v2 schema, source matching and SHA-pinned
+  per-client TRAIN_RULES.json keep legacy/v1/v2 rules from being mixed.
 
 ## Run prerequisites and invocation
 
