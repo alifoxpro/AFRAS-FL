@@ -6,6 +6,13 @@
 
 ## Research reproducibility and leakage audit (review branch)
 
+**Final MDPI AI submission readiness (2026-10-14): NOT READY FOR SUBMISSION.**
+See the [final blocker checklist](docs/FINAL_SCIENTIFIC_SUBMISSION_READINESS.md)
+and [source-only gate auditor](scripts/analysis/audit_submission_readiness.py).
+GitHub Actions now stores a reproducible, machine-readable readiness report;
+passing synthetic tests does NOT authenticate publisher data or historical results.
+
+
 **Important:** The historical README describes an IEEE IoT-J manuscript
 and lists `data/unify_features.py`, but this raw-data harmonization file,
 original source datasets, processed 5-link CSVs, raw split manifests and
