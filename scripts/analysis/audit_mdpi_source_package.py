@@ -30,8 +30,7 @@ def no_comments(source):
     for line in source.splitlines():
         cleaned = []
         for i, ch in enumerate(line):
-            if ch == "%" and (i == 0 or not
-                              (len(line[:i]) - len(line[:i].rstrip("\\"))) % 2):
+            if ch == "%" and ((len(line[:i]) - len(line[:i].rstrip("\\"))) % 2 == 0):
                 break
             cleaned.append(ch)
         out.append("".join(cleaned))
