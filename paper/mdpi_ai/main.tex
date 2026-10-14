@@ -36,10 +36,12 @@
 \newenvironment{remark}{\begin{Remark}}{\end{Remark}}
 \newenvironment{definition}{\begin{Definition}}{\end{Definition}}
 
-% Keep existing resubmission change tracking visible for author review.
-% Do not suppress changes before the editor confirms the correct version.
-\newcommand{\rev}[1]{\textcolor{red}{#1}}
-\newcommand{\strk}[1]{\textcolor{red}{\st{#1}}}
+% Clean reading/submission styling: reviewer-added \\rev text prints in
+% ordinary black. Text marked \\strk as deleted prints nothing in the PDF
+% (but remains in the TeX source for provenance/reviewer comparison).
+% No experimental result, number or scientific wording was changed.
+\newcommand{\rev}[1]{#1}
+\newcommand{\strk}[1]{}
 
 % Relative paths are evaluated from the LaTeX working directory.
 \graphicspath{{../figures/}}
@@ -1273,10 +1275,10 @@ R_{\text{MOSAR}}(s,a,s') \;=\;
       arr/.style={-Latex,thick},
     ]
     \node[comp,fill=blue!15]   (det)  {\textbf{$R_{\text{det}}$}\\Detection\\($\alpha=0.30$)};
-    \node[comp,fill=cyan!15,right=0.2cm of det]    (acc)  {\textbf{$R_{\text{acc}}$}\\Accuracy\\($\beta=$\textcolor{red}{$0.20$})};
+    \node[comp,fill=cyan!15,right=0.2cm of det]    (acc)  {\textbf{$R_{\text{acc}}$}\\Accuracy\\($\beta=$\textcolor{black}{$0.20$})};
     \node[comp,fill=green!15,right=0.2cm of acc]   (lat)  {\textbf{$R_{\text{lat}}$}\\Latency\\($\gamma=0.15$)};
     \node[comp,fill=yellow!20,right=0.2cm of lat]  (conf) {\textbf{$R_{\text{conf}}$}\\Confidence\\($\delta=0.15$)};
-    \node[comp,fill=red!15,right=0.2cm of conf]    (imp)  {\textbf{$R_{\text{imp}}$}\\Impact\\($\varepsilon=$\textcolor{red}{$0.20$})};
+    \node[comp,fill=red!15,right=0.2cm of conf]    (imp)  {\textbf{$R_{\text{imp}}$}\\Impact\\($\varepsilon=$\textcolor{black}{$0.20$})};
 
     \node[draw,rounded corners=4pt,fill=orange!25,minimum width=10.3cm,minimum height=0.9cm,below=0.9cm of lat,thick] (mosar) {\textbf{$R_{\text{MOSAR}} = \alpha R_{\text{det}} + \beta R_{\text{acc}} + \gamma R_{\text{lat}} + \delta R_{\text{conf}} + \varepsilon R_{\text{imp}}$}};
 
@@ -1439,7 +1441,7 @@ clients not to send conflicting signals through shared SDN links.
 
 \subsection{Theoretical guarantee}\label{sec:methods_theory}
 
-\begingroup\color{red}
+\begingroup\color{black}
 \begin{proposition}[Reference PBRS condition]\label{prop:invariance}
 Let $\Phi_k$ be a state-only potential function on client $k$, and let
 $R_{\text{shape}}(s,s') = \gamma \Phi_k(s') - \Phi_k(s)$. If a shaping
