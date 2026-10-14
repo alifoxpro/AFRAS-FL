@@ -72,14 +72,14 @@ class MDPIConversionIntegrityTests(unittest.TestCase):
 
     def test_red_style_or_deleted_text_not_resurrected(self):
         changed = self.conversion.replace(
-            r"\\newcommand{\\rev}[1]{#1}",
-            r"\\newcommand{\\rev}[1]{\\textcolor{red}{#1}}", 1)
+            r"\newcommand{\rev}[1]{#1}",
+            r"\newcommand{\rev}[1]{\textcolor{red}{#1}}", 1)
         self.assertNotEqual(changed, self.conversion)
         with self.assertRaisesRegex(ValueError, "render revisions black"):
             mod.verify_conversion(self.source, changed)
         altered = self.conversion.replace(
-            r"\\newcommand{\\strk}[1]{}",
-            r"\\newcommand{\\strk}[1]{#1}", 1)
+            r"\newcommand{\strk}[1]{}",
+            r"\newcommand{\strk}[1]{#1}", 1)
         self.assertNotEqual(altered, self.conversion)
         with self.assertRaisesRegex(ValueError, "hide deletions"):
             mod.verify_conversion(self.source, altered)
