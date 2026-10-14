@@ -86,7 +86,7 @@ class StrictFuzzyScaleTests(unittest.TestCase):
         y[0] = 3
         with self.assertRaisesRegex(ValueError, "severity"):
             fit_train_only_rules(x, y, ["a", "b"])
-        with self.assertRaisesRegex(ValueError, "two"):
+        with self.assertRaisesRegex(ValueError, "Two finite"):
             fit_train_only_rules([[0, 1, 2]] * 70, [1]*70, ["a", "b"])
         with self.assertRaisesRegex(ValueError, "feature names"):
             fit_train_only_rules(x, y, ["a", "a"])
