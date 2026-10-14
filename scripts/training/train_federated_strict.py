@@ -33,10 +33,13 @@ sys.path.insert(0, str(REPO / "training"))
 from scripts.data.strict_manifest import validate_stage3_inputs
 from scripts.data.feature_provenance import validate_train_feature_selection
 from scripts.data.label_evidence import audit_train_val
-from scripts.training.strict_fed_core import decision_metrics, jain_fairness, mosar_reward
+from scripts.training.strict_fed_core import (
+    decision_metrics, jain_fairness, mosar_reward, normalized_client_weights)
+from scripts.training.strict_fuzzy_core import (
+    fit_train_only_rules, infer_rule, SCHEMA as STRICT_FUZZY_SCHEMA)
 from scripts.training.train_mamba_strict import arrays_for_split, sha256_file
 from train_isolated import MambaOnlyModel, seed_everything
-from train_rl_multiagent_StrategyB import AFRASFLPipeline, FuzzyInferenceEngine, DQNNetwork
+from train_rl_multiagent_StrategyB import DQNNetwork
 
 STATE_DIM = 28
 
@@ -142,7 +145,12 @@ def load_client(dataset, link, paths, feature_names, args, out_root):
 
 
 def train_rules(client, out, max_rules_samples, seed):
-    """Mine the original 7-phase fuzzy pipeline from TRAIN samples only."""
+    """Fit NEW nine-cell fuzzy rules from TRAIN, with inference-matched scale.
+
+    The historical 7-phase pipeline denoised/rescaled its rule inputs but
+    inference was on the untransformed state: scientifically incomparable.
+    Do not silently label this replacement as reproduced 7-phase AFRAS-FL.
+    """
     x = client["train_state"]
     y = client["train_label"]
     if max_rules_samples and len(y) > max_rules_samples:
@@ -150,25 +158,27 @@ def train_rules(client, out, max_rules_samples, seed):
         idx.sort()
         x, y = x[idx], y[idx]
     if len(y) < 50:
-        raise ValueError("AFRAS-FL rule mining requires at least 50 TRAIN windows")
-    feature_names = ["train_feature_0_mean", "train_feature_1_mean"]
-    pipeline = AFRASFLPipeline(
-        x[:, :2].astype(np.float32), y.astype(np.int64),
-        feature_names, client["link"], out)
-    package = pipeline.run_all()
-    return FuzzyInferenceEngine(package["rules"],
-                                package["membership_params"],
-                                package["feature_names"]), package
+        raise ValueError("Strict fuzzy fitting requires at least 50 TRAIN windows")
+    package = fit_train_only_rules(
+        x[:, :2], y,
+        ["train_feature_0_mean", "train_feature_1_mean"],
+        min_support=max(5, min(20, len(y) // 30)), min_confidence=0.5)
+    if out.exists():
+        raise FileExistsError(f"Refusing to reuse strict fuzzy rules: {out}")
+    out.mkdir(parents=True, exist_ok=False)
+    (out / "TRAIN_RULES.json").write_text(
+        json.dumps(package, indent=2, sort_keys=True), encoding="utf-8")
+    return package, package
 
 
-def rule_arrays(engine, states):
+def rule_arrays(package, states):
     action = np.full(len(states), -1, dtype=np.int64)
     confidence = np.zeros(len(states), dtype=np.float32)
     for i, state in enumerate(states):
-        proposed, strength = engine.infer(state[:2])
+        proposed, strength = infer_rule(package, state[:2])
         if proposed is not None:
             action[i] = int(proposed)
-            confidence[i] = float(np.clip(strength, 0, 1))
+            confidence[i] = float(strength)
     return action, confidence
 
 
@@ -225,12 +235,36 @@ def local_fit(global_model, client, reward_targets, args, seed, mu_prox):
 
 
 def aggregate_state_dict(states, sizes):
-    """Example-weighted FedAvg; shared 28D semantics across all clients."""
-    weights = np.asarray(sizes, dtype=float)
-    weights /= weights.sum()
+    """Validated example-weighted FedAvg, aggregating ONLY model parameters.
+
+    A strict fail-closed check prevents silent state-key/shape/type corruption,
+    nonfinite updates or a negative/zero-size client's poisoned weights.
+    """
+    weights = normalized_client_weights(sizes, expected_clients=len(states))
+    expected = set(states[0])
+    if not expected:
+        raise ValueError("Federated state dict cannot be empty")
     averaged = {}
-    for name in states[0]:
-        averaged[name] = sum(float(weight) * sd[name] for weight, sd in zip(weights, states))
+    for ci, state in enumerate(states):
+        if set(state) != expected:
+            raise ValueError(f"Client {ci} parameter names do not match global model")
+    for name, reference in states[0].items():
+        if not torch.is_tensor(reference) or not reference.is_floating_point():
+            raise ValueError(f"Invalid nonfloat federated model entry: {name}")
+        if not torch.isfinite(reference).all():
+            raise ValueError(f"Nonfinite reference federated parameter: {name}")
+        acc = torch.zeros_like(reference, dtype=torch.float64)
+        for ci, (w, state) in enumerate(zip(weights, states)):
+            tensor = state[name]
+            if (not torch.is_tensor(tensor) or tensor.shape != reference.shape
+                    or tensor.dtype != reference.dtype or tensor.device != reference.device
+                    or not torch.isfinite(tensor).all()):
+                raise ValueError(f"Client {ci} incompatible/nonfinite parameter: {name}")
+            acc.add_(tensor.to(torch.float64), alpha=w)
+        merged = acc.to(reference.dtype)
+        if not torch.isfinite(merged).all():
+            raise ValueError(f"Aggregated nonfinite parameter: {name}")
+        averaged[name] = merged
     return averaged
 
 
@@ -360,7 +394,12 @@ def main():
             engine, client["train_state"])
         rule_summary[client["link"]] = {
             "rules": int(pkg["n_rules"]),
-            "train_only": True, "feature_columns": [0, 1],
+            "train_only": True,
+            "feature_columns": [0, 1],
+            "fuzzy_protocol": pkg["schema"],
+            "training_windows_used_for_rules": pkg["n_train"],
+            "rule_manifest_sha256": sha256_file(
+                output / "TRAIN_RULES" / client["link"] / "TRAIN_RULES.json"),
         }
     phases = [
         train_one_phase("B2_FedAvg", clients, args, output, fuzzy=False),
@@ -369,7 +408,7 @@ def main():
     ]
     settings = {k: str(v) if isinstance(v, Path) else v for k,v in vars(args).items()}
     metadata = {
-        "schema": "strict-fed-contextual-bandit-v1",
+        "schema": "strict-fed-contextual-bandit-v2",
         "dataset": args.dataset,
         "split_manifest_sha256": sha256_file(
             args.split_root / args.dataset / "manifest.json"),
@@ -382,6 +421,10 @@ def main():
         "raw_label_train_val_audit": label_audit["train_val_categories"] if label_audit else None,
         "mu_link_effective": 0,
         "discount_gamma": 0,
+        "fuzzy_rule_schema": STRICT_FUZZY_SCHEMA,
+        "fuzzy_rule_transform": "train_standardized_window_means_no_extra_fit",
+        "federated_aggregation": "verified_size_weighted_fedavg_float64_reduce",
+        "federated_privacy_guarantee": False,
         "action_space": ["ALLOW", "RATE_LIMIT", "BLOCK"],
         "client_checkpoint_sha256": {
             c["link"]: c["stage3_checkpoint_sha256"] for c in clients},
@@ -395,7 +438,9 @@ def main():
         "settings": settings,
         "limitations": [
             "Action-exogenous contextual bandit: not a dynamic SDN MDP",
-            "Source feature selection and dataset label taxonomy not audited",
+            "Original raw source authenticity and severity semantics await independent audit",
+            "Historical seven-phase denoise/oversampling rule induction NOT reproduced; new nine-cell rule protocol uses matching feature scales",
+            "Reward terms for teacher accuracy/confidence are action-invariant baselines; not independent action-selection objectives",
             "No validated neighbor coordination; mu_link forced to zero",
             "Decision success and false-block-on-Low are not clinical binary IDS FPR/FNR",
             "No independent TEST scores are emitted in Stage 4",
