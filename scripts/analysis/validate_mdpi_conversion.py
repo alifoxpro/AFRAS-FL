@@ -71,8 +71,8 @@ def verify_conversion(ieee, mdpi):
     # body (two diagram numbers and the red theory/proposition group).
     # No scientific text, numbers, formulas, figures or citations may differ.
     allowed = {
-        r"\\textcolor{red}{$0.20$}": r"\\textcolor{black}{$0.20$}",
-        r"\\begingroup\\color{red}": r"\\begingroup\\color{black}",
+        r"\textcolor{red}{$0.20$}": r"\textcolor{black}{$0.20$}",
+        r"\begingroup\color{red}": r"\begingroup\color{black}",
     }
     changed_counts = {}
     normalized_body = new_body
@@ -89,11 +89,11 @@ def verify_conversion(ieee, mdpi):
         raise ValueError(
             "SCIENTIFIC BODY ALTERED: beyond the three whitelisted cosmetic "
             "red-to-black replacements; formulas, numbers and citations must stay identical")
-    if r"\\textcolor{red}" in new_body or r"\\color{red}" in new_body:
+    if r"\textcolor{red}" in new_body or r"\color{red}" in new_body:
         raise ValueError("Visible red scientific body text remains")
-    if r"\\newcommand{\\rev}[1]{#1}" not in mdpi or r"\\newcommand{\\strk}[1]{}" not in mdpi:
+    if r"\newcommand{\rev}[1]{#1}" not in mdpi or r"\newcommand{\strk}[1]{}" not in mdpi:
         raise ValueError("MDPI clean version must render revisions black and hide deletions")
-    if r"\\textcolor{red}" in mdpi or r"\\color{red}" in mdpi:
+    if r"\textcolor{red}" in mdpi or r"\color{red}" in mdpi:
         raise ValueError("Visible red text commands remain in MDPI draft")
     source_title = _source_title(ieee)
     if r"\Title{" + source_title + "}" not in mdpi:
