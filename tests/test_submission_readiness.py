@@ -98,7 +98,7 @@ class FinalReadinessAuditTests(unittest.TestCase):
 
     def test_template_matching_and_no_revision_marks(self):
         with tempfile.TemporaryDirectory() as t:
-            root = specimen(Path(t), paper_class=r"\documentclass{Definitions}",
+            root = specimen(Path(t), paper_class=r"\documentclass[ai,article,submit]{Definitions/mdpi}",
                             redlines=False)
             out = ids(module.inspect_repository(root, "mdpi-ai"))
             self.assertEqual(out["TARGET_JOURNAL_TEMPLATE"]["status"], module.PASS)
