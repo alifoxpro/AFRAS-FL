@@ -7,13 +7,13 @@
 ## Research reproducibility and leakage audit (review branch)
 
 **Final MDPI AI submission readiness (2026-10-14): NOT READY FOR SUBMISSION.**
-See the [final blocker checklist](docs/FINAL_SCIENTIFIC_SUBMISSION_READINESS.md)
- and [MDPI AI editorial conversion plan](docs/MDPI_AI_EDITORIAL_CONVERSION_PLAN.md).
-The [source-only LaTeX dependency auditor](scripts/analysis/audit_mdpi_source_package.py)
+See the [final blocker checklist](docs/FINAL_SCIENTIFIC_SUBMISSION_READINESS.md),
+[automated submission-readiness gate](scripts/analysis/audit_submission_readiness.py)
+and [MDPI AI editorial conversion plan](docs/MDPI_AI_EDITORIAL_CONVERSION_PLAN.md).
+The [LaTeX dependency auditor](scripts/analysis/audit_mdpi_source_package.py)
 found all 34 referenced graphic files and no missing BibTeX citation keys in
-this branch. The original document still uses IEEEtran, and the real target
-journal needs author confirmation before preparing any new MDPI manuscript.
-and [source-only gate auditor](scripts/analysis/audit_submission_readiness.py).
+this branch. The document still uses IEEEtran, and the actual target journal
+requires author confirmation before preparing a separate MDPI manuscript.
 GitHub Actions now stores a reproducible, machine-readable readiness report;
 passing synthetic tests does NOT authenticate publisher data or historical results.
 
