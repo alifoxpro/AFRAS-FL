@@ -37,6 +37,20 @@ Saved in experiments/strict_test_eval/<dataset>/seed_<seed>/ :
   Jain fairness of action success.
 - TEST_PER_CLIENT.csv: per-client action success and specific action error rates.
 - TEST_REPORT.md: readable pooled comparison and cautions.
+- Stage 4 must use `strict-fed-contextual-bandit-v2`, with SHA-pinned
+  immutable TRAIN-only fuzzy rules, or the strict-test guard refuses TEST.
+- `TEST_RESULTS.json` contains per-severity precision/recall/F1,
+  macro F1 over **present** classes and balanced action accuracy; absent
+  class rates are `null`. It also includes binary attack precision,
+  recall, F1 and accuracy only where **all five** clients have reviewed
+  Attack/Benign label evidence.
+- Binary pooled FPR/FNR are recomputed from **summed** TP/TN/FP/FN
+  counts, rather than averaging per-client rates. An incompletely
+  labeled client blocks pooled binary IDS metrics.
+- Statistical significance is NOT calculated from TEST windows or
+  episodes. See `docs/METRICS_STATISTICAL_AND_MANUSCRIPT_AUDIT.md` and
+  `scripts/analysis/audit_metrics_statistics.py` for optional conditional
+  run-level paired-seed inference and its scientific limitations.
 
 Output directories are never overwritten. If execution fails after TEST was
 opened, retain the receipt and disclose the interrupted attempt. Never conceal
