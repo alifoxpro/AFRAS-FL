@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Validate Python source
-        run: python -m py_compile scripts/data/split_records_leakfree.py scripts/data/strict_manifest.py scripts/training/train_mamba_strict.py scripts/training/strict_fuzzy_core.py tests/test_strict_fl_fuzzy_science.py scripts/training/preflight_real_training.py tests/test_training_preflight.py scripts/training/strict_fed_core.py scripts/training/train_federated_strict.py scripts/data/strict_test_guard.py scripts/data/label_evidence.py scripts/data/audit_original_csvs.py scripts/data/prepare_official_dataset_archive.py tests/test_prepare_official_dataset_archive.py scripts/data/check_cic_portals.py tests/test_cic_portal_status.py scripts/data/review_raw_category_mapping.py scripts/data/unify_features_v2.py tests/test_unify_features_v2.py tests/test_original_csv_audit.py tests/test_review_raw_mapping.py scripts/data/feature_provenance.py scripts/data/select_features_train_only.py scripts/evaluation/evaluate_strict_test.py scripts/analysis/audit_metrics_statistics.py tests/test_metrics_statistics_audit.py tests/test_label_evidence.py tests/test_train_feature_provenance.py scripts/analysis/audit_mdpi_claims.py tests/test_mdpi_claim_audit.py tests/test_strict_test_guard.py tests/test_split_records.py tests/test_strict_manifest.py tests/test_strict_stage4_core.py
+        run: python -m py_compile scripts/data/split_records_leakfree.py scripts/data/strict_manifest.py scripts/training/train_mamba_strict.py scripts/training/strict_fuzzy_core.py tests/test_strict_fl_fuzzy_science.py scripts/training/preflight_real_training.py tests/test_training_preflight.py scripts/training/strict_fed_core.py scripts/training/train_federated_strict.py scripts/data/strict_test_guard.py scripts/data/label_evidence.py scripts/data/audit_original_csvs.py scripts/data/prepare_official_dataset_archive.py tests/test_prepare_official_dataset_archive.py scripts/data/check_cic_portals.py tests/test_cic_portal_status.py scripts/data/review_raw_category_mapping.py scripts/data/unify_features_v2.py tests/test_unify_features_v2.py tests/test_original_csv_audit.py tests/test_review_raw_mapping.py scripts/data/feature_provenance.py scripts/data/select_features_train_only.py scripts/evaluation/evaluate_strict_test.py scripts/analysis/audit_metrics_statistics.py tests/test_metrics_statistics_audit.py scripts/analysis/audit_submission_readiness.py tests/test_submission_readiness.py tests/test_label_evidence.py tests/test_train_feature_provenance.py scripts/analysis/audit_mdpi_claims.py tests/test_mdpi_claim_audit.py tests/test_strict_test_guard.py tests/test_split_records.py tests/test_strict_manifest.py tests/test_strict_stage4_core.py
       - name: Run synthetic partition tests
         run: python -m unittest discover -s tests -p 'test_*.py' -v
 
@@ -32,5 +32,17 @@ jobs:
         with:
           name: mdpi-source-statistical-audit
           path: /tmp/afras_manuscript_statistics_audit.json
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Final scientific readiness audit — expected non-ready until original evidence exists
+        run: |
+          python scripts/analysis/audit_submission_readiness.py --target-journal mdpi-ai --repo-root . --output /tmp/afras_submission_readiness.json
+          python -c 'import json; x=json.load(open("/tmp/afras_submission_readiness.json")); assert x["readiness"] == "NOT_READY_FOR_SUBMISSION", "Unexpected ready status: investigate immediately"; assert x["counts"]["blocked"] > 0, "Missing evidentiary blockers"; assert all(not g["evidence"].get("test_opened",False) for g in x["gates"]); print("FINAL SCIENTIFIC SUBMISSION STATUS:", x["readiness"], "| BLOCKED:", x["counts"]["blocked"], "| MANUAL REVIEW:", x["counts"]["independent_review_required"], "| STATIC IMPLEMENTATION ONLY:", x["counts"]["implemented_static_only"])'
+      - name: Save final readiness checklist, not performance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-scientific-readiness-checklist
+          path: /tmp/afras_submission_readiness.json
           retention-days: 30
           if-no-files-found: error
