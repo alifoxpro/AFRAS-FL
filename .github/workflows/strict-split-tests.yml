@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Validate Python source
-        run: python -m py_compile scripts/data/split_records_leakfree.py scripts/data/strict_manifest.py scripts/training/train_mamba_strict.py scripts/training/strict_fuzzy_core.py tests/test_strict_fl_fuzzy_science.py scripts/training/preflight_real_training.py tests/test_training_preflight.py scripts/training/strict_fed_core.py scripts/training/train_federated_strict.py scripts/data/strict_test_guard.py scripts/data/label_evidence.py scripts/data/audit_original_csvs.py scripts/data/prepare_official_dataset_archive.py tests/test_prepare_official_dataset_archive.py scripts/data/check_cic_portals.py tests/test_cic_portal_status.py scripts/data/review_raw_category_mapping.py scripts/data/unify_features_v2.py tests/test_unify_features_v2.py tests/test_original_csv_audit.py tests/test_review_raw_mapping.py scripts/data/feature_provenance.py scripts/data/select_features_train_only.py scripts/evaluation/evaluate_strict_test.py scripts/analysis/audit_metrics_statistics.py tests/test_metrics_statistics_audit.py scripts/analysis/audit_submission_readiness.py tests/test_submission_readiness.py scripts/analysis/audit_mdpi_source_package.py tests/test_mdpi_source_package.py tests/test_label_evidence.py tests/test_train_feature_provenance.py scripts/analysis/audit_mdpi_claims.py tests/test_mdpi_claim_audit.py tests/test_strict_test_guard.py tests/test_split_records.py tests/test_strict_manifest.py tests/test_strict_stage4_core.py
+        run: python -m py_compile scripts/data/split_records_leakfree.py scripts/data/strict_manifest.py scripts/training/train_mamba_strict.py scripts/training/strict_fuzzy_core.py tests/test_strict_fl_fuzzy_science.py scripts/training/preflight_real_training.py tests/test_training_preflight.py scripts/training/strict_fed_core.py scripts/training/train_federated_strict.py scripts/data/strict_test_guard.py scripts/data/label_evidence.py scripts/data/audit_original_csvs.py scripts/data/prepare_official_dataset_archive.py tests/test_prepare_official_dataset_archive.py scripts/data/check_cic_portals.py tests/test_cic_portal_status.py scripts/data/review_raw_category_mapping.py scripts/data/unify_features_v2.py tests/test_unify_features_v2.py tests/test_original_csv_audit.py tests/test_review_raw_mapping.py scripts/data/feature_provenance.py scripts/data/select_features_train_only.py scripts/evaluation/evaluate_strict_test.py scripts/analysis/audit_metrics_statistics.py tests/test_metrics_statistics_audit.py scripts/analysis/audit_submission_readiness.py tests/test_submission_readiness.py scripts/analysis/audit_mdpi_source_package.py tests/test_mdpi_source_package.py scripts/analysis/validate_mdpi_conversion.py tests/test_mdpi_conversion_integrity.py tests/test_label_evidence.py tests/test_train_feature_provenance.py scripts/analysis/audit_mdpi_claims.py tests/test_mdpi_claim_audit.py tests/test_strict_test_guard.py tests/test_split_records.py tests/test_strict_manifest.py tests/test_strict_stage4_core.py
       - name: Run synthetic partition tests
         run: python -m unittest discover -s tests -p 'test_*.py' -v
 
@@ -56,5 +56,17 @@ jobs:
         with:
           name: mdpi-latex-dependency-inventory
           path: /tmp/afras_mdpi_package_inventory.json
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Enforce scientific-text identity in separate MDPI AI draft
+        run: |
+          python scripts/analysis/validate_mdpi_conversion.py --source paper/main.tex --converted paper/mdpi_ai/main.tex --output /tmp/mdpi_scientific_conversion_integrity.json
+          python -c 'import json; r=json.load(open("/tmp/mdpi_scientific_conversion_integrity.json")); assert r["figure_inclusions"] == 34; assert r["source_scientific_body_sha256"] == r["converted_scientific_body_sha256"]; print("MDPI body preserved byte-for-byte; all", r["figure_inclusions"], "figure refs retained; no scientific result modified.")'
+      - name: Archive MDPI source-conversion audit only
+        uses: actions/upload-artifact@v4
+        with:
+          name: mdpi-ai-source-conversion-integrity
+          path: /tmp/mdpi_scientific_conversion_integrity.json
           retention-days: 30
           if-no-files-found: error
