@@ -1,4 +1,4 @@
-name: AFRAS V2 one-time official UCI native source-only pilot
+name: AFRAS V2 official UCI native weighted-loss source-only pilot
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   official-source-pilot:
-    name: Real UCI native ZIP+RAR source-only FL feasibility (NOT confirmatory)
+    name: Real UCI native ZIP+RAR source-only *class-weighted* FL feasibility
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
@@ -60,14 +60,15 @@ jobs:
             --batch-size 128 \
             --lr 0.01 \
             --fedprox-mu 0.01 \
+            --loss-balance inverse-prevalence \
             --seed 3107 \
             --backend cpu \
-            --output stage17_v2_artifacts/source_only_exploratory_pilot.json
+            --output stage17_v2_artifacts/source_only_exploratory_pilot_weighted.json
       - name: Store *summary only* artifacts (no source observations or datasets)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: afras-v2-official-source-exploratory-raw-parsing-evidence
+          name: afras-v2-official-source-exploratory-weighted-loss-evidence
           path: stage17_v2_artifacts/*.json
           if-no-files-found: warn
           retention-days: 7
