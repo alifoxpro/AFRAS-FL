@@ -1,0 +1,49 @@
+name: AFRAS V2 evidence-only matched source-pilot comparison
+
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - .github/workflows/afras-v2-compare-native-pilots.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  compare-provenance-and-source-validation:
+    name: Compare same-UCI source-only unweighted vs weighted pilot
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get unweighted UCI native source pilot evidence
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40039441881
+          name: afras-v2-official-source-exploratory-raw-parsing-evidence
+          path: evidence_unweighted
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get weighted UCI native source pilot evidence
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40040041429
+          name: afras-v2-official-source-exploratory-weighted-loss-evidence
+          path: evidence_weighted
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Independently reconcile both UCI source-only pilot JSONs
+        run: |
+          set -euxo pipefail
+          python3 stage17_v2/compare_source_only_pilots.py \
+            --baseline evidence_unweighted/source_only_exploratory_pilot.json \
+            --baseline-provenance evidence_unweighted/source_member_provenance.json \
+            --weighted evidence_weighted/source_only_exploratory_pilot_weighted.json \
+            --weighted-provenance evidence_weighted/source_member_provenance.json \
+            --output stage17_v2_source_comparison.json
+      - name: Preserve small comparison evidence only
+        uses: actions/upload-artifact@v4
+        with:
+          name: afras-v2-paired-source-only-weighted-vs-unweighted-reconciliation
+          path: stage17_v2_source_comparison.json
+          retention-days: 7
