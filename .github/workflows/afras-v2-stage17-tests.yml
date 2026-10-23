@@ -1,0 +1,39 @@
+name: AFRAS V2 Stage17 source-only pilot unit tests
+
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - stage17_v2/**
+      - .github/workflows/afras-v2-stage17-tests.yml
+  pull_request:
+    paths:
+      - stage17_v2/**
+      - .github/workflows/afras-v2-stage17-tests.yml
+
+permissions:
+  contents: read
+
+jobs:
+  source-only-unit:
+    name: Python source-only FL unit tests (no raw dataset)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: stage17_v2/requirements-pilot.txt
+      - name: Install CPU-only scientific dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r stage17_v2/requirements-pilot.txt
+      - name: Syntax check
+        run: python -m compileall -q stage17_v2
+      - name: Source-only tests (synthetic fixtures only)
+        run: python -m unittest discover -s stage17_v2 -p "test_*.py" -v
