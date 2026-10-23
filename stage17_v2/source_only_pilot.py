@@ -388,12 +388,14 @@ def pilot_one_method(method, clients, validation, args, backend):
 
 
 def verify_source_archive_hashes(source_root: Path, manifest_path: Path,
-                                 source_devices: list[str]) -> dict[str, str]:
+                                 source_devices: list[str], heldout: str) -> dict[str, str]:
     """Validate source ZIP bytes against recorded local manifest (not UCI attestation).
 
     The excluded target is NEVER opened or hashed. The original manifest may
     list all nine devices, but only the eight source archive paths are touched.
     """
+    if heldout not in DEVICES or heldout in source_devices or len(source_devices) != 8 or len(set(source_devices)) != 8:
+        raise ValueError("Local hash preflight must exclude exactly one held-out device")
     manifest = json.loads(manifest_path.read_text(encoding="utf8"))
     archives = manifest.get("local_archives")
     if not isinstance(archives, list) or len(archives) != len(DEVICES):
@@ -461,7 +463,7 @@ def main():
     # SECURITY/SCIENCE INVARIANT: no target/held-out archive path is opened here.
     sources = [*train_devices, validation_device]
     checked_source_sha256 = (
-        verify_source_archive_hashes(args.source_root, args.manifest, sources)
+        verify_source_archive_hashes(args.source_root, args.manifest, sources, args.heldout)
         if args.manifest is not None else {}
     )
     clients = {}
