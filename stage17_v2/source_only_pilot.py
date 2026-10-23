@@ -308,13 +308,23 @@ def weighted_fedavg(states, counts):
 
 
 def train_client(initial, dataset, method, mu, local_epochs,
-                 batch_size, lr, random_seed, backend):
+                 batch_size, lr, random_seed, backend, loss_balance="none"):
     model = BinaryMLP().to(backend)
     model.load_state_dict(initial)
     model.train()
     reference = [p.detach().clone() for p in model.parameters()]
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
     X, y = dataset
+    if loss_balance not in ("none", "inverse-prevalence"):
+        raise ValueError("Unknown class-loss balancing mode")
+    n_benign = int(np.count_nonzero(y == 0.0))
+    n_attack = int(np.count_nonzero(y == 1.0))
+    if n_benign < 1 or n_attack < 1 or n_benign + n_attack != len(y):
+        raise ValueError("Client must have both canonical binary classes")
+    positive_weight = (float(n_benign / n_attack)
+                       if loss_balance == "inverse-prevalence" else 1.0)
+    positive_weight_tensor = torch.tensor(positive_weight, dtype=torch.float32,
+                                          device=backend)
     iterator = DataLoader(
         TensorDataset(torch.from_numpy(X), torch.from_numpy(y)),
         batch_size=batch_size, shuffle=True,
@@ -324,7 +334,9 @@ def train_client(initial, dataset, method, mu, local_epochs,
         for xb, yb in iterator:
             xb, yb = xb.to(backend), yb.to(backend)
             optimizer.zero_grad(set_to_none=True)
-            loss = nn.functional.binary_cross_entropy_with_logits(model(xb), yb)
+            loss = nn.functional.binary_cross_entropy_with_logits(
+                model(xb), yb, pos_weight=positive_weight_tensor
+            )
             if method == "fedprox":
                 penalty = sum(
                     (p - p0).square().sum()
@@ -375,7 +387,8 @@ def pilot_one_method(method, clients, validation, args, backend):
             s = train_client(
                 initial, dataset, method, args.fedprox_mu,
                 args.local_epochs, args.batch_size, args.lr,
-                args.seed + round_no * 1009 + idx, backend
+                args.seed + round_no * 1009 + idx, backend,
+                args.loss_balance
             )
             states.append(s)
             sizes.append(len(dataset[1]))
@@ -445,6 +458,8 @@ def main():
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--fedprox-mu", type=float, default=0.01)
+    parser.add_argument("--loss-balance", choices=["none", "inverse-prevalence"],
+                        default="none", help="SOURCE-only weighted BCE for debug pilot")
     parser.add_argument("--seed", type=int, default=3107)
     parser.add_argument("--backend", choices=["cpu", "cuda"], default="cpu")
     args = parser.parse_args()
@@ -512,11 +527,18 @@ def main():
         "preprocessing_fit_device_scope": train_devices,
         "preprocessing_fit_statistics": normalization,
         "protocol_candidate_not_frozen": True,
+        "source_training_loss_balance": args.loss_balance,
+        "source_train_positive_weights": {
+            device: (float(np.count_nonzero(y == 0.0) / np.count_nonzero(y == 1.0))
+                     if args.loss_balance == "inverse-prevalence" else 1.0)
+            for device, (_X, y) in clients.items()
+        },
         "algorithms": methods,
         "hyperparameters": {
             "seed": args.seed, "rounds": args.rounds,
             "local_epochs": args.local_epochs, "batch_size": args.batch_size,
             "lr": args.lr, "fedprox_mu": args.fedprox_mu,
+            "loss_balance": args.loss_balance,
             "backend": args.backend,
         },
         "code_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
