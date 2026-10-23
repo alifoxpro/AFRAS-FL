@@ -37,6 +37,17 @@ python stage17_v2/source_only_pilot.py \
   --output ./stage17_v2_pilot_result.json
 ```
 
+## Local SHA-256 source integrity preflight (recommended)
+
+Before using real locally staged native N-BaIoT ZIPs, pass the original Stage-13 JSON manifest with exactly nine canonical entries under \`local_archives\`, each providing \`device\`, \`filename\`, and \`local_sha256\`. The pilot recalculates SHA-256 **only for the eight source archives** and rejects any mismatch. The named held-out archive is never opened or hashed:
+
+\`\`\`bash
+# Append to the pilot command:
+--manifest /path/to/NBaIoT_Nine_Device_Local_File_Manifest_2026-10-23.json
+\`\`\`
+
+Manifest validation verifies local archive byte identity against existing local records, **not official UCI publisher-byte provenance**. Do not confuse this with the 89 nested CSV-byte checksum audit. The Stage-13 code-level issue of nine benign CSV header-hash values still needs its targeted data-admission correction.
+
 ## Expected output
 
 An output JSON is written only at the end of successful execution. It records held-out exclusion flags, training and source validation device identities, class counts, source-train-fitted transforms, local data subsampling, method-specific source validation diagnostics, and source code checksum.
