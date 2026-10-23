@@ -7,10 +7,6 @@ on:
     paths:
       - stage17_v2/**
       - .github/workflows/afras-v2-stage17-tests.yml
-  pull_request:
-    paths:
-      - stage17_v2/**
-      - .github/workflows/afras-v2-stage17-tests.yml
 
 permissions:
   contents: read
