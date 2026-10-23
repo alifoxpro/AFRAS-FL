@@ -386,11 +386,55 @@ def pilot_one_method(method, clients, validation, args, backend):
     return traces
 
 
+
+def verify_source_archive_hashes(source_root: Path, manifest_path: Path,
+                                 source_devices: list[str]) -> dict[str, str]:
+    """Validate source ZIP bytes against recorded local manifest (not UCI attestation).
+
+    The excluded target is NEVER opened or hashed. The original manifest may
+    list all nine devices, but only the eight source archive paths are touched.
+    """
+    manifest = json.loads(manifest_path.read_text(encoding="utf8"))
+    archives = manifest.get("local_archives")
+    if not isinstance(archives, list) or len(archives) != len(DEVICES):
+        raise ValueError("Expected nine original local archive manifest records")
+    records = {}
+    for entry in archives:
+        device = entry.get("device")
+        if device not in DEVICES or device in records:
+            raise ValueError("Unknown/duplicate local manifest device")
+        if entry.get("filename") != device + ".zip":
+            raise ValueError("Unexpected device archive filename")
+        digest = entry.get("local_sha256")
+        if (not isinstance(digest, str) or len(digest) != 64
+                or any(c not in "0123456789abcdef" for c in digest.lower())):
+            raise ValueError("Invalid source archive SHA-256 in manifest")
+        records[device] = digest.lower()
+    if set(records) != set(DEVICES):
+        raise ValueError("Incomplete canonical device manifest")
+    checked = {}
+    for device in source_devices:
+        if device not in records:
+            raise ValueError("Unlisted device")
+        path = source_root / (device + ".zip")
+        h = hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1 << 20), b""):
+                h.update(chunk)
+        actual = h.hexdigest()
+        if actual != records[device]:
+            raise ValueError("Source ZIP SHA-256 mismatch: " + device)
+        checked[device] = actual
+    return checked
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-root", required=True, type=Path,
                         help="Directory containing the original device-name ZIPs")
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--manifest", type=Path, default=None,
+                        help="Optional recorded local SHA-256 manifest; sources only")
     parser.add_argument("--heldout", default=DEVICES[0], choices=DEVICES)
     parser.add_argument("--validation", default=DEVICES[1], choices=DEVICES)
     parser.add_argument("--max-per-class", type=int, default=128)
@@ -416,6 +460,10 @@ def main():
 
     # SECURITY/SCIENCE INVARIANT: no target/held-out archive path is opened here.
     sources = [*train_devices, validation_device]
+    checked_source_sha256 = (
+        verify_source_archive_hashes(args.source_root, args.manifest, sources)
+        if args.manifest is not None else {}
+    )
     clients = {}
     validation = None
     supports = {}
@@ -452,7 +500,10 @@ def main():
         "source_validation_device": validation_device,
         "training_devices": train_devices,
         "source_archive_names_used": [d + ".zip" for d in sources],
-        "source_zip_hashes_recomputed": False,
+        "source_zip_hashes_recomputed": args.manifest is not None,
+        "source_zip_sha256": checked_source_sha256,
+        "source_hash_manifest_path": str(args.manifest) if args.manifest else None,
+        "hash_scope": "ONLY_EIGHT_SOURCE_ARCHIVES_NEVER_TARGET",
         "source_native_class_counts": supports,
         "source_only_sampled_class_cap": args.max_per_class,
         "changed_native_prevalence_for_debugging": True,
