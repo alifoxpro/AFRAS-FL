@@ -290,11 +290,18 @@ def assert_approval(gate_path: Path|None, spec_path: Path):
         "protocol_sha256":file_sha256(spec_path),
         "engine_sha256":file_sha256(Path(__file__)),
         "replay_sha256":file_sha256(REPLAY),
+        "native_loader_sha256":file_sha256(Path(native.__file__)),
+        "requirements_sha256":file_sha256(ROOT/"stage17_v2"/"requirements-pilot.txt"),
+        "native_inventory_sha256":file_sha256(
+            ROOT/"stage16_v2"/"EXPOSURE_ELIGIBILITY_ANALYSIS_ONLY.csv"),
     }
     if (approval.get("status") != "AUTHORIZED_FOR_CONFIRMATORY_TEST"
             or approval.get("authorized") is not True
             or not isinstance(approval.get("approved_by"),str)
             or not approval["approved_by"].strip()
+            or approval.get("human_review_complete") is not True
+            or approval.get("independent_data_admission_complete") is not True
+            or approval.get("no_target_results_reviewed") is not True
             or any(approval.get(k)!=v for k,v in sha.items())):
         raise PermissionError("Approval absent or current audited code hashes differ")
     return approval,sha
