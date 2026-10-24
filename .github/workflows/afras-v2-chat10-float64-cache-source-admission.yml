@@ -1,0 +1,132 @@
+name: AFRAS V2 Chat10 native float64 and source cache admission
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - .github/workflows/afras-v2-chat10-float64-cache-source-admission.yml
+permissions:
+  contents: read
+
+jobs:
+  real-native-source-cache-regression:
+    name: Real 8 source UCI, cold/warm cache, both full 5x3 baselines; ZERO target
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU requirements
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r stage17_v2/requirements-pilot.txt
+          python -m compileall -q stage17_v2 stage18_v2
+          mkdir -p "$RUNNER_TEMP/uci_sources" "$RUNNER_TEMP/_SOURCE_SAMPLE_CACHE_PRIVATE" stage18_chat10
+      - name: Download publicly released UCI N-BaIoT original ZIP
+        run: |
+          set -euxo pipefail
+          curl --fail --location --retry 3 --retry-delay 10 \
+            --speed-time 90 --speed-limit 1024 --max-time 1800 \
+            -o "$RUNNER_TEMP/uci_original.zip" \
+            'https://archive.ics.uci.edu/static/public/442/detection+of+iot+botnet+attacks+n+baiot.zip'
+      - name: Stage strictly eight original public source members
+        run: |
+          set -euxo pipefail
+          python stage17_v2/prepare_uci_public_sources.py \
+            --outer-zip "$RUNNER_TEMP/uci_original.zip" \
+            --source-root "$RUNNER_TEMP/uci_sources" \
+            --heldout Ennio_Doorbell \
+            --validation Samsung_SNH_1011_N_Webcam \
+            --record stage18_chat10/original_uci_source_receipt.json
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          r=json.load(open("stage18_chat10/original_uci_source_receipt.json"))
+          assert r["outer_archive_sha256"]=="64929678b081d8e579a8d7c488cf11cc588403f282d5fb065b4156edbd55de9b"
+          assert len(r["device_files"])==8
+          assert r["heldout_member_contents_opened"] is False
+          assert not Path(os.environ["RUNNER_TEMP"],"uci_sources","Ennio_Doorbell.zip").exists()
+          PY
+      - name: Native float64 source cache COLD, full-budget FedAvg
+        run: |
+          set -euxo pipefail
+          python stage18_v2/lodo_engine.py --mode preflight \
+            --source-root "$RUNNER_TEMP/uci_sources" \
+            --source-cache-root "$RUNNER_TEMP/_SOURCE_SAMPLE_CACHE_PRIVATE" \
+            --heldout Ennio_Doorbell --method FedAvg --seed 3107 \
+            --preflight-cap 30000 --preflight-rounds 5 --preflight-epochs 3 \
+            --output-dir stage18_chat10/FedAvg_5x3_cold
+      - name: Native float64 source cache WARM, same full-budget FedAvg
+        run: |
+          set -euxo pipefail
+          python stage18_v2/lodo_engine.py --mode preflight \
+            --source-root "$RUNNER_TEMP/uci_sources" \
+            --source-cache-root "$RUNNER_TEMP/_SOURCE_SAMPLE_CACHE_PRIVATE" \
+            --heldout Ennio_Doorbell --method FedAvg --seed 3107 \
+            --preflight-cap 30000 --preflight-rounds 5 --preflight-epochs 3 \
+            --output-dir stage18_chat10/FedAvg_5x3_warm
+      - name: Native float64 source cache WARM, full-budget FedProx
+        run: |
+          set -euxo pipefail
+          python stage18_v2/lodo_engine.py --mode preflight \
+            --source-root "$RUNNER_TEMP/uci_sources" \
+            --source-cache-root "$RUNNER_TEMP/_SOURCE_SAMPLE_CACHE_PRIVATE" \
+            --heldout Ennio_Doorbell --method FedProx --seed 3107 \
+            --preflight-cap 30000 --preflight-rounds 5 --preflight-epochs 3 \
+            --output-dir stage18_chat10/FedProx_5x3_warm
+      - name: Verify exact sample IDs, float64 transform statistics and matched learning history
+        run: |
+          python - <<'PY'
+          import json,math
+          from pathlib import Path
+          root=Path("stage18_chat10")
+          cold=json.loads((root/"FedAvg_5x3_cold"/"run_receipt.json").read_text())
+          warm=json.loads((root/"FedAvg_5x3_warm"/"run_receipt.json").read_text())
+          prox=json.loads((root/"FedProx_5x3_warm"/"run_receipt.json").read_text())
+          devices=set(cold["training_devices"])
+          assert len(devices)==8 and "Ennio_Doorbell" not in devices
+          for obj in (cold,warm,prox):
+              assert obj["mode"]=="preflight" and obj["source_clients"]==8
+              assert obj["target_test_scored"] is False and obj["target_archive_opened"] is False
+              assert obj["target_results"] is None
+              assert obj["no_target_features_or_labels_accessed"] is True
+              assert obj["actual_training_feature_exposure"]["num_rows"]==240000
+              assert obj["training"]["rounds"]==5 and obj["training"]["local_epochs"]==3
+              assert all(math.isfinite(r["mean_final_local_loss"]) for r in obj["training"]["round_trace"])
+              assert set(obj["sampling"])==devices
+              assert set(x["sample_size"] for x in obj["sampling"].values())=={30000}
+          assert all(r["sample_cache_status"]=="NEW_SOURCE_CACHE" for r in cold["sampling"].values())
+          assert all(r["sample_cache_status"]=="VERIFIED_HIT" for r in warm["sampling"].values())
+          assert all(r["sample_cache_status"]=="VERIFIED_HIT" for r in prox["sampling"].values())
+          for dev in devices:
+              a,b,c=(x["sampling"][dev] for x in (cold,warm,prox))
+              assert a["sample_row_ids_sha256"]==b["sample_row_ids_sha256"]==c["sample_row_ids_sha256"]
+          assert cold["preprocessing_train_only"]["sha256"]==warm["preprocessing_train_only"]["sha256"]==prox["preprocessing_train_only"]["sha256"]
+          x=[r["mean_final_local_loss"] for r in cold["training"]["round_trace"]]
+          y=[r["mean_final_local_loss"] for r in warm["training"]["round_trace"]]
+          assert max(abs(a-b) for a,b in zip(x,y)) < 1e-7
+          print("CHAT10_REAL_SOURCE_FLOAT64_FULL_BUDGET_CACHE_REPRODUCIBILITY_PASS",
+                json.dumps({"FedAvg_cold_training_seconds":cold["training"]["seconds"],
+                            "FedAvg_warm_training_seconds":warm["training"]["seconds"],
+                            "FedProx_warm_training_seconds":prox["training"]["seconds"],
+                            "same_source_sample":True,
+                            "same_source_fitted_preprocess":True,
+                            "same_FedAvg_learning_curve":True,
+                            "zero_target_predictions":True}),flush=True)
+          PY
+      - name: Upload small receipts only; withhold raw training-sample membership and native data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: afras-v2-chat10-real-float64-cold-warm-eight-client-5x3-source-evidence
+          path: |
+            stage18_chat10/original_uci_source_receipt.json
+            stage18_chat10/FedAvg_5x3_cold/run_receipt.json
+            stage18_chat10/FedAvg_5x3_warm/run_receipt.json
+            stage18_chat10/FedProx_5x3_warm/run_receipt.json
+          if-no-files-found: warn
+          retention-days: 10
