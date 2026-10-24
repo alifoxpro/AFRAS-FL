@@ -181,12 +181,28 @@ class RawPredictionStreamAndReplay(unittest.TestCase):
         self.assertEqual(counts["mirai_ack"],0)
         inventory=base/"analysis_only_inventory.csv"
         make_inventory(inventory,target,counts)
+        sources=list(e.fold_sources(target))
+        fingerprint_bank=base/"actually_trained_source_feature_digests.csv.gz"
+        with gzip.open(fingerprint_bank,"xt",encoding="utf8",newline="") as f:
+            writer=csv.writer(f)
+            writer.writerow(("training_source_device","raw_float64_feature_digest"))
+            for source in sources:
+                writer.writerows((source,"12"*16) for _ in range(30000))
+        fingerprint_receipt={
+            "filename":fingerprint_bank.name,
+            "sha256":e.file_sha256(fingerprint_bank),
+            "num_rows":240000,
+            "status":"ACTUAL_SELECTED_TRAINING_ROWS_ONLY_NOT_FULL_SOURCE_CORPUS",
+        }
         receipt=base/"run_receipt.json"
         receipt.write_text(json.dumps({
             "mode":"confirmatory","status":"CONFIRMATORY_RAW_PREDICTION_OUTPUT",
             "heldout_device":target,"training_devices":list(e.fold_sources(target)),
             "target_test_scored":True,"target_archive_opened":True,
             "source_clients":8,"model":"FedAvg","seed":3107,
+            "sampling":{source:{"sample_size":30000} for source in sources},
+            "actual_training_feature_exposure":fingerprint_receipt,
+            "training":{"rounds":5,"local_epochs":3},
             "protocol_sha256":"synthetic-fixture-hash",
             "engine_sha256":"synthetic-fixture-hash",
             "target_results":{
@@ -226,6 +242,33 @@ class RawPredictionStreamAndReplay(unittest.TestCase):
             receipt.write_text(json.dumps(obj))
             with self.assertRaisesRegex(ValueError,"Invalid canonical Stage13"):
                 r.replay_and_validate(receipt,inv,base/"reject.json")
+
+    def test_actual_training_vector_exposure_preserves_float64_precision(self):
+        original=np.zeros((2,e.N),dtype=np.float64)
+        original[0,0]=1.00000000001
+        original[1,0]=1.00000000002
+        self.assertEqual(np.float32(original[0,0]),np.float32(original[1,0]))
+        sampler=e.UniformDeviceTopK(2,3107)
+        sampler.ingest(original[:1],"benign",0)
+        sampler.ingest(original[1:],"gafgyt_combo",0)
+        _,_,receipt=sampler.finish()
+        hashes=receipt["sampled_raw_feature_digests"]
+        self.assertEqual(len(hashes),2)
+        self.assertEqual(len(set(hashes)),2)
+        self.assertEqual(set(hashes),set(e.raw_feature_digests(original)))
+
+    def test_replay_rejects_training_sample_bank_tampering(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base=Path(temp)
+            _,pth,inv,receipt=self.sample_run(base)
+            bank=base/"actually_trained_source_feature_digests.csv.gz"
+            with gzip.open(bank,"at",encoding="utf8") as f:
+                f.write("bogus-source,"+"34"*16+"\n")
+            obj=json.loads(receipt.read_text())
+            obj["actual_training_feature_exposure"]["sha256"]=e.file_sha256(bank)
+            receipt.write_text(json.dumps(obj))
+            with self.assertRaisesRegex(ValueError,"Invalid sampled training digest row"):
+                r.replay_and_validate(receipt,inv,base/"bad_bank.json")
 
     def test_native_original_row_stream_and_independent_metric_replay(self):
         with tempfile.TemporaryDirectory() as temp:
