@@ -63,7 +63,7 @@ def validate_original_source_manifest(source_root:Path,manifest_path:Path):
             raise ValueError("Original source ZIP SHA-256 mismatch: "+filename)
         verified.append({
             "device":dev,"filename":filename,"bytes":size,
-            "sha256":actual,"status":"BYTE_IDENTICAL_TO_PRIOR_AUDITED_LOCAL_ORIGINAL",
+            "sha256":actual,"status":("MATCHES_PUBLISHER_REPACKAGED_CANDIDATE_ZIP" if repackaged else "BYTE_IDENTICAL_TO_PRIOR_AUDITED_LOCAL_ORIGINAL"),
         })
         print("ORIGINAL_ZIP_BYTES_MATCH",dev,size,flush=True)
     return {
