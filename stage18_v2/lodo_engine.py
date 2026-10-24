@@ -18,6 +18,8 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import platform
+import subprocess
 import sys
 from time import perf_counter
 
@@ -364,9 +366,19 @@ def run(args):
                 or args.preflight_epochs != 0):
             raise ValueError("Pilot overrides forbidden in confirmatory mode")
         approval, hashes=assert_approval(args.approval_gate,args.protocol)
+        manifest_path=getattr(args,"source_manifest",None)
+        if manifest_path is None or not manifest_path.is_file():
+            raise PermissionError("Original source manifest required for confirmatory execution")
+        if approval.get("source_manifest_sha256")!=file_sha256(manifest_path):
+            raise PermissionError("Source manifest digest differs from approved receipt")
     else:
         if args.approval_gate:
             raise ValueError("Do not use a target-approval gate in source preflight")
+    source_hashes={}
+    if args.mode=="confirmatory":
+        source_hashes=native.verify_source_archive_hashes(
+            args.source_root,args.source_manifest,list(sources),args.heldout
+        )
     args.output_dir.mkdir(parents=True,exist_ok=False)
     sample_k=(spec["modeling"]["source_uniform_sample_per_device_without_replacement"]
               if args.mode=="confirmatory" else args.preflight_cap or 30000)
@@ -410,10 +422,33 @@ def run(args):
        "engine_sha256":file_sha256(Path(__file__)),
        "code_version":"STAGE18_V2_COMMIT_NOT_HARDCODED",
        "label_source":"original native source path",
+       "source_original_zip_sha256_checked":source_hashes,
+       "execution_environment":{
+           "python":sys.version,
+           "platform":platform.platform(),
+           "torch":torch.__version__,
+           "numpy":np.__version__,
+           "pandas":pd.__version__,
+           "source_code_commit":subprocess.run(
+               ["git","rev-parse","HEAD"],cwd=ROOT,
+               capture_output=True,text=True,check=False,timeout=5
+           ).stdout.strip() or "UNAVAILABLE",
+           "requirements_sha256":file_sha256(ROOT/"stage17_v2"/"requirements-pilot.txt")
+       },
        "not_privacy_claim":"Client data was read by a centralized research runner",
        "target_results":None
     }
     if args.mode=="confirmatory":
+        original=json.loads(args.source_manifest.read_text(encoding="utf8"))
+        target_record=[entry for entry in original["local_archives"]
+                       if entry["device"]==args.heldout]
+        if len(target_record)!=1:
+            raise ValueError("Original manifest must contain heldout device exactly once")
+        target_zip=args.source_root/(args.heldout+".zip")
+        target_digest=file_sha256(target_zip)
+        if target_digest!=target_record[0]["local_sha256"].lower():
+            raise ValueError("Heldout target archive bytes diverge from pre-admitted source")
+        result["target_archive_sha256"]=target_digest
         predpath=args.output_dir/"target_predictions.csv.gz"
         class_counts,predsha=write_all_target_predictions(
             args.source_root,args.heldout,state,header,mean,std,predpath)
@@ -444,6 +479,7 @@ def main():
     a.add_argument("--method",choices=("FedAvg","FedProx"),default="FedAvg")
     a.add_argument("--seed",type=int,default=3107)
     a.add_argument("--approval-gate",type=Path,default=None)
+    a.add_argument("--source-manifest",type=Path,default=None)
     a.add_argument("--preflight-cap",type=int,default=0)
     a.add_argument("--preflight-rounds",type=int,default=0)
     a.add_argument("--preflight-epochs",type=int,default=0)
