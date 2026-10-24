@@ -26,7 +26,7 @@ DEVICES=(
 LABELS=("benign","gafgyt_combo","gafgyt_junk","gafgyt_scan","gafgyt_tcp",
         "gafgyt_udp","mirai_ack","mirai_scan","mirai_syn",
         "mirai_udp","mirai_udpplain")
-HEADER=("device","attack_class","source_row_index","y_true","attack_probability")
+HEADER=("device","attack_class","source_row_index","y_true","feature_digest","attack_probability")
 
 
 def sha(path):
@@ -84,6 +84,9 @@ def replay_one(prediction_path:Path,target:str,expected:dict):
             label=int(r["y_true"])
             if label not in (0,1) or label!=int(cls!="benign"):
                 raise ValueError("Source-class vs binary label conflict")
+            digest=r["feature_digest"]
+            if len(digest)!=32 or any(x not in "0123456789abcdef" for x in digest):
+                raise ValueError("Invalid canonical Stage13 feature digest")
             p=float(r["attack_probability"])
             if not math.isfinite(p) or not 0.0<=p<=1.0:
                 raise ValueError("Invalid model output probability")
@@ -134,6 +137,7 @@ def replay_one(prediction_path:Path,target:str,expected:dict):
         "raw_prediction_file_sha256":sha(prediction_path),
         "estimation_unit":"one heldout device; not one row",
         "exposure_recurring_metrics":"NOT_IN_BASE_REPLAY; analysis-only join pending",
+        "digest_semantics":"BLAKE2b-128 canonical float64 signed-zero normalized; no raw features released",
     }
 
 
