@@ -39,6 +39,12 @@ jobs:
             --output-root "$RUNNER_TEMP/afras_chat18_reconstructed"
           cp "$RUNNER_TEMP/afras_chat18_reconstructed/uci_original_native_member_comparison_receipt.json" \
             stage18_chat18/uci_original_native_member_comparison_receipt.json
+          cp "$RUNNER_TEMP/afras_chat18_reconstructed/PUBLISHER_UCI_NINE_REPACKAGED_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json" \
+            stage18_chat18/PUBLISHER_UCI_NINE_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json
+          python stage18_v2/verify_original_nine_zip_bytes.py \
+            --source-root "$RUNNER_TEMP/afras_chat18_reconstructed/rebuilt_official_device_archives" \
+            --manifest stage18_chat18/PUBLISHER_UCI_NINE_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json \
+            --receipt stage18_chat18/PUBLISHER_UCI_NINE_REPACKAGED_BYTES_CHECK__NOT_AUTHORIZED.json
       - name: Cross-match 23 historical original user-local member SHA values against new official UCI bytes
         run: |
           python - <<'PY'
@@ -83,6 +89,15 @@ jobs:
           assert r['official_native_member_count']==25
           assert r['downloaded_original_transport_sha256']=='64929678b081d8e579a8d7c488cf11cc588403f282d5fb065b4156edbd55de9b'
           assert 0<=r['historical_outer_zip_exact_matches']<=9
+          m=json.loads(Path('stage18_chat18/PUBLISHER_UCI_NINE_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json').read_text())
+          check=json.loads(Path('stage18_chat18/PUBLISHER_UCI_NINE_REPACKAGED_BYTES_CHECK__NOT_AUTHORIZED.json').read_text())
+          import hashlib
+          mdig=hashlib.sha256(Path('stage18_chat18/PUBLISHER_UCI_NINE_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json').read_bytes()).hexdigest()
+          assert mdig==r['provisional_unapproved_publisher_repacked_manifest_sha256']
+          assert len(m["local_archives"])==9 and m["human_authorization_granted"] is False
+          assert m["record_status"]=="UNAPPROVED_PUBLISHER_UCI_NATIVE_MEMBERS_REPACKAGED_NINE_SOURCE_WRAPPERS"
+          assert check["original_zips_verified"]==9 and check["human_scientific_approval_created"] is False
+          assert check["original_source_manifest_sha256"]==mdig
           assert r['current_user_Library_zip_bytes_read'] is False
           assert r['full_nine_local_zip_admission_of_user_library_bytes'] is False
           assert r['actual_native_test_rows_scored']==0
@@ -100,6 +115,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: afras-chat18-uci-25-native-member-rebuild-versus-original-nine-zip-audit
-          path: stage18_chat18/uci_original_native_member_comparison_receipt.json
+          path: |
+            stage18_chat18/uci_original_native_member_comparison_receipt.json
+            stage18_chat18/PUBLISHER_UCI_NINE_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json
+            stage18_chat18/PUBLISHER_UCI_NINE_REPACKAGED_BYTES_CHECK__NOT_AUTHORIZED.json
           if-no-files-found: warn
           retention-days: 15
