@@ -103,6 +103,27 @@ class FrozenPlanTests(unittest.TestCase):
             with self.assertRaises(PermissionError):
                 engine.assert_approval(receipt,engine.CORE)
 
+    def test_prior_revision_cannot_be_resumed_as_current_confirmatory_evidence(self):
+        task=plan.locked_tasks()[0]
+        with tempfile.TemporaryDirectory() as tmp:
+            folder=Path(tmp)
+            (folder/"run_receipt.json").write_text(json.dumps({
+                "heldout_device":task["heldout_device"],
+                "model":task["method"],
+                "seed":task["seed"],
+                "mode":"confirmatory",
+                "protocol_sha256":"stale-protocol-sha",
+                "engine_sha256":"stale-engine-sha",
+                "training_devices":task["source_clients"]
+            }),encoding="utf8")
+            (folder/"independent_replay.json").write_text(json.dumps({
+                "status":"INDEPENDENT_FULL_NATIVE_TARGET_PREDICTION_REPLAY",
+                "engine_sha256":"stale-engine-sha",
+                "protocol_sha256":"stale-protocol-sha",
+            }),encoding="utf8")
+            with self.assertRaisesRegex(ValueError,"different code/protocol/approval"):
+                plan.verify_completed(folder,task)
+
     def test_existing_partial_run_not_skipped(self):
         task=plan.locked_tasks()[0]
         with tempfile.TemporaryDirectory() as folder:
