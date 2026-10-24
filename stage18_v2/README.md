@@ -40,9 +40,14 @@ The normal confirmatory mode **always rejects** missing, malformed or stale auth
   "orchestration_sha256": "<actual stage18_v2/plan_and_run_54.py SHA-256>",
   "exposure_analysis_protocol_sha256": "<actual Stage16 pre-result exposure addendum SHA-256>",
   "original_nine_zip_admission_scanner_sha256": "<actual stage18_v2/verify_original_nine_zip_bytes.py SHA-256>",
+  "primary_analysis_sha256": "<actual preregistered stage19_v2/independent_device_paired_analysis.py SHA-256>",
+  "sample_exposure_analysis_sha256": "<actual preregistered stage19_v2/training_exposure_strata.py SHA-256>",
+  "full_source_exposure_analysis_sha256": "<actual preregistered stage19_v2/full_source_vs_training_exposure.py SHA-256>",
   "source_manifest_sha256": "<actual original nine-local-ZIP manifest SHA-256>"
 }
 ```
+
+**Chat 19 review note.** The full original source-availability analysis was added to the pre-result method and consequently a reviewer approval must now include the three Stage19 script SHA fields above. The previous ten-field JSON example was incomplete; do **not** copy it as a valid approval. Current source-data evidence is **9/9 Library filename+byte-size metadata match**, a previously recorded nine-archive local-audit digest list, and a new publisher-public UCI 23/23 *independently compared* member-byte cross-check (two Ennio local-member SHA comparisons were not independently reproduced in that Chat18 run). None of those facts is a fresh streaming SHA-256 of all nine original Library ZIPs on the final execution computer. No GitHub review has been submitted. **0/54 native heldout fits executed.** This internal responsible-human evidence gate is a project integrity rule, not a blanket MDPI mandatory public-data approval policy.
 
 This JSON is an auditable approval **receipt, not a cryptographic signature**. This repository does not fabricate an authorized receipt. Use `stage18_v2/NOT_AUTHORIZED_HUMAN_REVIEW_TEMPLATE.json` only as a fail-closed reference; it MUST remain `authorized:false` until the responsible person actually approves a **private local copy**. Generate the immutable 54-run ledger and real file-byte hashes using `python stage18_v2/plan_and_run_54.py --plan-output /path/to/plan.json --source-manifest /path/to/official_local_nine_zip_manifest.json`. The reproducibility hashes include the imported native ZIP/RAR loader and original class-support inventory because these affect scientific results. Until scientific and code review, DO NOT run `--mode confirmatory`, create an approval receipt, or inspect target accuracy.
 
