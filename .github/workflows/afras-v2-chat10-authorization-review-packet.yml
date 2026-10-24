@@ -1,4 +1,4 @@
-name: AFRAS V2 Chat10 reviewable zero-target 54-run authorization packet
+name: AFRAS V2 Chat12 original ZIP and nine-file human review packet
 on:
   push:
     branches:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   create-responsible-human-review-packet:
-    name: SHA-bound 54-run plan & exact eight-dependency checklist; NEVER authorize
+    name: SHA-bound 54-run plan & exact nine-dependency checklist; NEVER authorize
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -26,48 +26,56 @@ jobs:
       - name: Generate SHA-bound 54-task research review only (ZERO dataset access)
         run: |
           set -euxo pipefail
-          mkdir -p chat10_scientific_review_packet
+          mkdir -p chat12_scientific_review_packet
           python stage18_v2/plan_and_run_54.py \
-            --plan-output chat10_scientific_review_packet/EXACT_54_TASKS_NO_TEST_EXECUTED.json
+            --source-manifest stage18_v2/ORIGINAL_NINE_LOCAL_ZIP_HASH_MANIFEST_2026-10-24.json \
+            --plan-output chat12_scientific_review_packet/EXACT_54_TASKS_NO_TEST_EXECUTED.json
+          cp stage18_v2/ORIGINAL_NINE_LOCAL_ZIP_HASH_MANIFEST_2026-10-24.json \
+            chat12_scientific_review_packet/EXPECTED_NINE_ORIGINAL_ZIP_SHA256_MANIFEST.json
+          cp stage18_v2/verify_original_nine_zip_bytes.py \
+            chat12_scientific_review_packet/ORIGINAL_NINE_ZIP_ADMISSION_SCANNER.py
           cp stage18_v2/NOT_AUTHORIZED_HUMAN_REVIEW_TEMPLATE.json \
-            chat10_scientific_review_packet/FAIL_CLOSED_HUMAN_REVIEW_TEMPLATE.json
+            chat12_scientific_review_packet/FAIL_CLOSED_HUMAN_REVIEW_TEMPLATE.json
           cp stage16_v2/FROZEN_CORE_PROTOCOL_V1_2026-10-24.json \
-            chat10_scientific_review_packet/FROZEN_CORE_METHODS.json
+            chat12_scientific_review_packet/FROZEN_CORE_METHODS.json
           cp stage16_v2/PRE_RESULT_EXPOSURE_ESTIMAND_CLARIFICATION_2026-10-24.md \
-            chat10_scientific_review_packet/EXPOSURE_ESTIMAND_CLARIFICATION.md
+            chat12_scientific_review_packet/EXPOSURE_ESTIMAND_CLARIFICATION.md
       - name: Verify full plan, no target scoring permission, and required code checksums
         run: |
           python - <<'PY'
           from pathlib import Path
           import json,hashlib
-          root=Path("chat10_scientific_review_packet")
+          root=Path("chat12_scientific_review_packet")
           p=json.loads((root/"EXACT_54_TASKS_NO_TEST_EXECUTED.json").read_text())
           t=json.loads((root/"FAIL_CLOSED_HUMAN_REVIEW_TEMPLATE.json").read_text())
           assert p["runs_planned"]==54 and p["runs_executed_by_planner"]==0
           assert p["status"]=="PLAN_ONLY__NO_TARGET_OPENED"
           assert len(p["tasks"])==54 and len(set(x["task_id"] for x in p["tasks"]))==54
           assert t["authorized"] is False and t["human_review_complete"] is False
-          assert p["source_manifest_sha256"] is None
+          manifest=Path("stage18_v2/ORIGINAL_NINE_LOCAL_ZIP_HASH_MANIFEST_2026-10-24.json")
+          assert p["source_manifest_sha256"]==hashlib.sha256(manifest.read_bytes()).hexdigest()
           keys=[
               "protocol_sha256","engine_sha256","replay_sha256",
               "native_loader_sha256","requirements_sha256",
               "native_inventory_sha256","orchestration_sha256",
               "exposure_analysis_protocol_sha256",
+              "original_nine_zip_admission_scanner_sha256",
           ]
           assert all(len(p[k])==64 for k in keys)
           output={k:p[k] for k in keys}
-          output["source_manifest_sha256"]="NOT_AVAILABLE_IN_PUBLIC_REVIEW_PACKET"
+          output["source_manifest_sha256"]=p["source_manifest_sha256"]
+          output["fresh_local_original_zip_bytes_rehashed_here"]=False
           output["target_predictions_computed"]=False
           output["operator_signed_approval_created"]=False
           output["responsible_researcher_review_required"]=True
           (root/"ACTUAL_GITHUB_EXECUTION_CODE_SHA256.json").write_text(json.dumps(output,indent=2)+"\n")
-          print("CHAT10_54_TASK_REVIEW_PACKET_PASS",json.dumps({
+          print("CHAT12_54_TASK_REVIEW_PACKET_PASS",json.dumps({
               "tasks":54,"verified_code_hashes":len(keys),
               "approval":False,"target_runs":0}),flush=True)
           PY
       - name: Archive review metadata only, never raw source data or authorized=true receipts
         uses: actions/upload-artifact@v4
         with:
-          name: afras-v2-chat10-54task-zero-target-human-review-packet
-          path: chat10_scientific_review_packet/
+          name: afras-v2-chat12-54task-original-zip-manifest-nine-dependency-review-packet
+          path: chat12_scientific_review_packet/
           retention-days: 15
