@@ -39,6 +39,7 @@ The normal confirmatory mode **always rejects** missing, malformed or stale auth
   "native_inventory_sha256": "<actual Stage16 analysis-only inventory SHA-256>",
   "orchestration_sha256": "<actual stage18_v2/plan_and_run_54.py SHA-256>",
   "exposure_analysis_protocol_sha256": "<actual Stage16 pre-result exposure addendum SHA-256>",
+  "original_nine_zip_admission_scanner_sha256": "<actual stage18_v2/verify_original_nine_zip_bytes.py SHA-256>",
   "source_manifest_sha256": "<actual original nine-local-ZIP manifest SHA-256>"
 }
 ```
@@ -76,6 +77,22 @@ The 54-run executor now uses a **private per-device/seed sample cache** to avoid
 The original full-source-availability recurrence (Stage 13, ~90.74%) must never be renamed "model-visible training overlap": frozen training uses only eight 30k-device source subsamples. A distinct pre-result clarification names true sampled-training exposure as a separate analysis-only variable.
 
 **Real-data gate evidence:** GitHub Actions \`afras-v2-chat10-float64-cache-source-admission.yml\` is the public-original-UCI source-only cold/warm cache and 5×3 FedAvg/FedProx regression. Its final workflow outcome must be checked rather than inferred from source compilation or synthetic QA. It does **not** open/score any held-out target.
+
+## Chat 12: pre-execution nine-ZIP byte verification enforced
+
+The 54-run `--execute` path now **recomputes SHA-256 of all nine original local outer ZIP files before starting the FIRST training job or target inference**. A missing, repackaged, modified, corrupted, or wrong-size original ZIP terminates with an error and creates **no confirmatory result output directory**. A successful all-nine byte admission writes `ORIGINAL_NINE_ZIP_BYTE_ADMISSION.json` to the private result root; on resume, it must match the newly verified original-file evidence exactly. The byte admission is source authentication, **not an approval, label audit, or target prediction**. Computing a checksum necessarily reads a held-out ZIP's compressed bytes but does **not** decode its CSV/RAR feature or label contents.
+
+The admission scanner itself is bound by `original_nine_zip_admission_scanner_sha256` in the human approval gate. The existing `ORIGINAL_NINE_LOCAL_ZIP_HASH_MANIFEST_2026-10-24.json` was reconstructed from prior local original-file checks, **not** recomputed from full Library byte content in Chat12; the current Chat12 runtime cannot execute local byte hashing and has not reported a new nine-original-ZIP PASS.
+
+```bash
+# Source-byte admission only, no FL models and no heldout scoring:
+python stage18_v2/verify_original_nine_zip_bytes.py \
+  --source-root /secure/original/nine_zip_files \
+  --manifest stage18_v2/ORIGINAL_NINE_LOCAL_ZIP_HASH_MANIFEST_2026-10-24.json \
+  --receipt /secure/evidence/ORIGINAL_NINE_ZIP_BYTE_ADMISSION.json
+```
+
+Once responsible human approval and the unchanged frozen protocol are reviewed, the 54-run executor will repeat this all-nine byte check **inside** the authorized run, prior to launching the first fit. The workflow intentionally offers no automatic approval.
 
 ## Scientific limitations / review checklist
 
