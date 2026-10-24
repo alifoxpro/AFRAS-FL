@@ -17,6 +17,8 @@ import hashlib
 import json
 from pathlib import Path
 
+from replay_predictions import DEVICES
+
 
 def sha256_file(path:Path):
     h=hashlib.sha256()
@@ -33,6 +35,8 @@ def validate_original_source_manifest(source_root:Path,manifest_path:Path):
     entries=m.get("local_archives")
     if not isinstance(entries,list) or len(entries)!=9:
         raise ValueError("Expected nine audited device ZIP entries")
+    if {x.get("device") for x in entries}!=set(DEVICES):
+        raise ValueError("Nine original ZIP devices must match frozen canonical devices")
     seen=set()
     verified=[]
     for entry in entries:
