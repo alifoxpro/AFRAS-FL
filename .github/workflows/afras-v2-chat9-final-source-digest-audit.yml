@@ -1,0 +1,85 @@
+name: AFRAS V2 Chat9 final native source-exposure audit (current code)
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - .github/workflows/afras-v2-chat9-final-source-digest-audit.yml
+permissions:
+  contents: read
+jobs:
+  source-exposure-proof:
+    name: Verify 240k ACTUALLY TRAINED source vector digests; never target
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU dependencies
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r stage17_v2/requirements-pilot.txt
+          python -m compileall -q stage17_v2 stage18_v2
+          mkdir -p "$RUNNER_TEMP/native_8_sources" stage18_v2_chat9_digest_receipt
+      - name: Original public UCI source bytes
+        run: |
+          set -euxo pipefail
+          curl --fail --location --retry 3 --retry-delay 10 \
+            --speed-time 90 --speed-limit 1024 --max-time 1800 \
+            -o "$RUNNER_TEMP/public_original.zip" \
+            'https://archive.ics.uci.edu/static/public/442/detection+of+iot+botnet+attacks+n+baiot.zip'
+          python stage17_v2/prepare_uci_public_sources.py \
+            --outer-zip "$RUNNER_TEMP/public_original.zip" \
+            --source-root "$RUNNER_TEMP/native_8_sources" \
+            --heldout Ennio_Doorbell \
+            --validation Samsung_SNH_1011_N_Webcam \
+            --record stage18_v2_chat9_digest_receipt/original_UCI_provenance.json
+          python - <<'PY'
+          import json
+          p=json.load(open("stage18_v2_chat9_digest_receipt/original_UCI_provenance.json"))
+          assert p["outer_archive_sha256"]=="64929678b081d8e579a8d7c488cf11cc588403f282d5fb065b4156edbd55de9b"
+          assert len(p["device_files"])==8 and not p["heldout_member_contents_opened"]
+          PY
+      - name: Current code eight-source native training and sampled-exposure sidecar
+        run: |
+          set -euxo pipefail
+          python stage18_v2/lodo_engine.py --mode preflight \
+            --source-root "$RUNNER_TEMP/native_8_sources" \
+            --heldout Ennio_Doorbell --method FedAvg --seed 3107 \
+            --preflight-cap 30000 --preflight-rounds 1 --preflight-epochs 1 \
+            --output-dir stage18_v2_chat9_digest_receipt/actual_source_preflight
+      - name: Independent canonical vector-digest bank verification
+        run: |
+          set -euxo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json,sys
+          sys.path.insert(0,"stage18_v2")
+          import replay_predictions as independent
+          root=Path("stage18_v2_chat9_digest_receipt/actual_source_preflight")
+          receipt=root/"run_receipt.json"
+          r=json.loads(receipt.read_text())
+          assert r["target_archive_opened"] is False
+          assert r["target_test_scored"] is False
+          assert r["target_results"] is None
+          assert not list(root.glob("*target_predictions*"))
+          bank=independent.verify_actual_training_exposure_bank(receipt,r)
+          assert bank["actual_training_source_rows"]==240000
+          assert len(bank["actual_training_sources"])==8
+          print("ACTUALLY_TRAINED_SOURCE_EXPOSURE_NATIVE_BANK_PASS",json.dumps(bank),flush=True)
+          print("EXACT_CODE_AND_PROTOCOL_SHA",r["engine_sha256"],r["protocol_sha256"],flush=True)
+          PY
+      - name: Share only review metadata, never raw source membership digests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: afras-v2-chat9-native-actual-training-exposure-integrity-receipt
+          path: |
+            stage18_v2_chat9_digest_receipt/original_UCI_provenance.json
+            stage18_v2_chat9_digest_receipt/actual_source_preflight/run_receipt.json
+          retention-days: 10
+          if-no-files-found: warn
