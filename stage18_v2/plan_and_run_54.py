@@ -104,6 +104,17 @@ def verify_completed(run_folder:Path, expected:dict):
         raise ValueError("Existing checkpoint changed: "+expected["task_id"])
     if evidence.get("protocol_sha256")!=rec.get("protocol_sha256"):
         raise ValueError("Existing replay protocol mismatch")
+    bank=rec.get("actual_training_feature_exposure")
+    exposure=evidence.get("actual_training_exposure_integrity")
+    if (not isinstance(bank,dict) or not isinstance(exposure,dict)
+            or bank.get("filename")!="actually_trained_source_feature_digests.csv.gz"
+            or bank.get("num_rows")!=240000
+            or bank.get("sha256")!=exposure.get("source_sample_digest_sha256")
+            or exposure.get("actual_training_source_rows")!=240000):
+        raise ValueError("Missing independently verified actual-source exposure bank")
+    actual_bank=run_folder/bank["filename"]
+    if not actual_bank.is_file() or engine.file_sha256(actual_bank)!=bank["sha256"]:
+        raise ValueError("Actually trained source digest bank changed")
     return True
 
 
