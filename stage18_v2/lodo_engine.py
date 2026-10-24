@@ -33,7 +33,7 @@ import source_only_pilot as native
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT / "stage16_v2" / "FROZEN_CORE_PROTOCOL_V1_2026-10-24.json"
 REPLAY = Path(__file__).with_name("replay_predictions.py")
-HEADER = ("device","attack_class","source_row_index","y_true","attack_probability")
+HEADER = ("device","attack_class","source_row_index","y_true","feature_digest","attack_probability")
 N = native.N_FEATURES
 
 
@@ -285,6 +285,27 @@ def assert_approval(gate_path: Path|None, spec_path: Path):
     return approval,sha
 
 
+def raw_feature_digests(original_float64: np.ndarray):
+    """Reproduce Stage13 numerical-feature equality without model access.
+
+    Canonicalized little-endian IEEE754 float64, normalize signed zeros,
+    BLAKE2b-128 over the 115 ordered feature values. Generated ONLY during
+    post-training target prediction streaming; never used to fit the model.
+    """
+    if original_float64.ndim!=2 or original_float64.shape[1]!=N:
+        raise ValueError("Incorrect vector width for Stage13 digest")
+    if not np.isfinite(original_float64).all():
+        raise ValueError("Invalid nonfinite numerical feature fingerprint")
+    canonical=np.array(original_float64,dtype="<f8",order="C",copy=True)
+    canonical[canonical==0.0]=0.0
+    view=memoryview(canonical).cast("B")
+    step=N*8
+    return [
+        hashlib.blake2b(view[i:i+step],digest_size=16).hexdigest()
+        for i in range(0,len(view),step)
+    ]
+
+
 @torch.no_grad()
 def write_all_target_predictions(root: Path, heldout: str, state,
                                  ordered_header, mean, std, output: Path):
@@ -317,8 +338,10 @@ def write_all_target_predictions(root: Path, heldout: str, state,
                 ).cpu().numpy()
                 if not np.isfinite(probabilities).all():
                     raise ValueError("Nonfinite target probabilities")
+                digests=raw_feature_digests(X)
                 for i,pr in enumerate(probabilities):
-                    wr.writerow((heldout,cls,count+i,int(cls!="benign"),repr(float(pr))))
+                    wr.writerow((heldout,cls,count+i,int(cls!="benign"),
+                                 digests[i],repr(float(pr))))
                 count+=len(probabilities)
             class_counts[cls]=count
     return class_counts,file_sha256(output)
