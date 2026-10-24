@@ -68,6 +68,9 @@ def create_plan(protocol:Path=engine.CORE, manifest:Path|None=None):
         "requirements_sha256":engine.file_sha256(
             ROOT/"stage17_v2"/"requirements-pilot.txt"),
         "native_inventory_sha256":engine.file_sha256(INVENTORY),
+        "orchestration_sha256":engine.file_sha256(Path(__file__)),
+        "exposure_analysis_protocol_sha256":engine.file_sha256(
+            ROOT/"stage16_v2"/"PRE_RESULT_EXPOSURE_ESTIMAND_CLARIFICATION_2026-10-24.md"),
         "source_manifest_sha256":(
             engine.file_sha256(manifest) if manifest else None),
         "frozen_core_full_execution_authorized":False,
