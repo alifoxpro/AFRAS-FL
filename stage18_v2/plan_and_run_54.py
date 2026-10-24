@@ -19,6 +19,7 @@ import sys
 
 import lodo_engine as engine
 import replay_predictions as replay
+import verify_original_nine_zip_bytes as original_byte_admission
 
 HERE=Path(__file__).resolve().parent
 ROOT=HERE.parent
@@ -73,6 +74,8 @@ def create_plan(protocol:Path=engine.CORE, manifest:Path|None=None):
             ROOT/"stage16_v2"/"PRE_RESULT_EXPOSURE_ESTIMAND_CLARIFICATION_2026-10-24.md"),
         "source_manifest_sha256":(
             engine.file_sha256(manifest) if manifest else None),
+        "original_nine_zip_admission_scanner_sha256":engine.file_sha256(
+            Path(original_byte_admission.__file__)),
         "frozen_core_full_execution_authorized":False,
         "runs_planned":54,
         "runs_executed_by_planner":0,
@@ -150,8 +153,24 @@ def execute_tasks(args,plan):
         raise FileNotFoundError("Native class-support inventory absent")
     if args.source_root is None or not args.source_root.is_dir():
         raise FileNotFoundError("Original nine local native ZIPs required")
+    # Before ANY target prediction or source-fit, verify all original ZIP bytes
+    # against the human-reviewed manifest. A remembered Library file name/size
+    # and a source-member digest are NOT sufficient for this gate.
+    original_receipt=original_byte_admission.validate_original_source_manifest(
+        args.source_root,args.source_manifest)
+    if original_receipt["original_zips_verified"]!=9:
+        raise ValueError("All original nine N-BaIoT outer ZIPs must verify")
     root=args.output_root
     root.mkdir(parents=True,exist_ok=True)
+    admitted=root/"ORIGINAL_NINE_ZIP_BYTE_ADMISSION.json"
+    if admitted.exists():
+        old=json.loads(admitted.read_text(encoding="utf8"))
+        if old!=original_receipt:
+            raise ValueError("Previously admitted ZIP evidence differs")
+    else:
+        with admitted.open("x",encoding="utf8") as fd:
+            json.dump(original_receipt,fd,indent=2,allow_nan=False)
+    print("NINE_ORIGINAL_ZIP_BYTES_ADMITTED__NO_TEST_YET",flush=True)
     completed=0
     for task in plan["tasks"]:
         folder=root/task["task_id"]
