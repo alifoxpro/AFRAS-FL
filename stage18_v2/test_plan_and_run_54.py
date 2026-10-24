@@ -142,7 +142,7 @@ class FrozenPlanTests(unittest.TestCase):
             (run/"independent_replay.json").write_text(
                 json.dumps({"status":"INDEPENDENT_FULL_NATIVE_TARGET_PREDICTION_REPLAY"}),
                 encoding="utf8")
-            with self.assertRaisesRegex(ValueError,"do not match"):
+            with self.assertRaisesRegex(ValueError,"different code/protocol/approval|do not match"):
                 plan.verify_completed(run,task)
 
 
