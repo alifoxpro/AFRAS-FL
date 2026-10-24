@@ -97,6 +97,7 @@ class UniformDeviceTopK:
         self.row_ids = np.empty((0,), dtype=np.int64)
         self.total_seen = 0
         self.original_class_counts = {}
+        self.raw_selected_vectors = np.empty((0, N), dtype=np.float64)
 
     def ingest(self, data: np.ndarray, class_name: str, start_row: int):
         if data.ndim != 2 or data.shape[1] != N or not np.isfinite(data).all():
@@ -113,7 +114,8 @@ class UniformDeviceTopK:
         keys = self.rng.random(n)
         count = min(n, self.k)
         ix = np.argpartition(keys, count - 1)[:count]
-        candidates = data[ix].astype(np.float32)
+        raw_candidates = np.asarray(data[ix], dtype=np.float64)
+        candidates = raw_candidates.astype(np.float32)
         if not np.isfinite(candidates).all():
             raise ValueError("Float32 conversion overflow")
         labels = np.full(len(ix), float(class_name != "benign"), dtype=np.float32)
@@ -123,6 +125,7 @@ class UniformDeviceTopK:
         select_n = min(self.k, len(joint_key))
         chosen = np.argpartition(joint_key, select_n - 1)[:select_n]
         self.x = np.concatenate((self.x, candidates))[chosen].copy()
+        self.raw_selected_vectors = np.concatenate((self.raw_selected_vectors, raw_candidates))[chosen].copy()
         self.labels = np.concatenate((self.labels, labels))[chosen].copy()
         self.keys = joint_key[chosen].copy()
         self.class_ids = np.concatenate((self.class_ids, classes))[chosen].copy()
@@ -139,6 +142,7 @@ class UniformDeviceTopK:
         self.labels = self.labels[order]
         self.class_ids = self.class_ids[order]
         self.row_ids = self.row_ids[order]
+        self.raw_selected_vectors = self.raw_selected_vectors[order]
         h = hashlib.sha256()
         h.update(self.class_ids.tobytes())
         h.update(self.row_ids.tobytes())
@@ -147,7 +151,16 @@ class UniformDeviceTopK:
             cls: int((self.class_ids == native.LABELS.index(cls)).sum())
             for cls in native.LABELS
         }
+        canonical = np.asarray(self.raw_selected_vectors, dtype="<f8", order="C").copy()
+        canonical[canonical == 0.0] = 0.0
+        raw_digest_hex = [
+            hashlib.blake2b(row.tobytes(), digest_size=16).hexdigest()
+            for row in canonical
+        ]
+        # Hashes of EXACT SOURCE SAMPLES actually used for training, distinct
+        # from Stage13 FULL-source-availability recurrence. Never raw features.
         return self.x, self.labels, {
+            "sampled_raw_feature_digests": raw_digest_hex,
             "native_rows": self.total_seen,
             "native_class_counts": self.original_class_counts,
             "sample_size": int(len(self.labels)),
@@ -389,13 +402,37 @@ def run(args):
     header=None
     clients={}
     native_receipts={}
+    sampled_digest_sets={}
     for source in sources:
         pair,rec,header=load_source_only(
             args.source_root,source,sample_k,seed,header)
         clients[source]=pair
+        sampled = rec.pop("sampled_raw_feature_digests", None)
+        if sampled is not None:
+            if len(sampled) != rec["sample_size"]:
+                raise ValueError("Source sampled feature digest count mismatch")
+            sampled_digest_sets[source] = sampled
+        elif args.mode == "confirmatory":
+            raise ValueError("Missing true feature exposure from sampled training source")
         native_receipts[source]=rec
         print("SOURCE_ONLY_DEVICE_LOADED",source,rec["native_rows"],
               rec["sample_size"],flush=True)
+    if len(sampled_digest_sets) == 8:
+        digest_path=args.output_dir/"actually_trained_source_feature_digests.csv.gz"
+        with gzip.open(digest_path, "xt", encoding="utf8", newline="") as fd:
+            wr=csv.writer(fd)
+            wr.writerow(("training_source_device","raw_float64_feature_digest"))
+            for source in sources:
+                for h in sampled_digest_sets[source]:
+                    wr.writerow((source,h))
+        source_sample_digest_receipt={
+            "filename":digest_path.name,
+            "sha256":file_sha256(digest_path),
+            "num_rows":sum(len(v) for v in sampled_digest_sets.values()),
+            "status":"ACTUAL_SELECTED_TRAINING_ROWS_ONLY_NOT_FULL_SOURCE_CORPUS",
+        }
+    else:
+        source_sample_digest_receipt=None
     processed,mean,std=source_transform(clients)
     state,trace,seconds=train_eight(
         processed,method,seed,spec,round_count,local_epochs)
@@ -412,6 +449,7 @@ def run(args):
        "binary_threshold":spec["modeling"]["threshold"],
        "model":method,"seed":seed,
        "sampling":native_receipts,
+       "actual_training_feature_exposure":source_sample_digest_receipt,
        "preprocessing_train_only":{
            "mean":mean.tolist(),"scale":std.tolist(),
            "sha256":source_stats
