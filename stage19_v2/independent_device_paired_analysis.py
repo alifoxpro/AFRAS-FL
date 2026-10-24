@@ -293,9 +293,21 @@ def main():
               "native_inventory_sha256","orchestration_sha256",
               "exposure_analysis_protocol_sha256",
               "original_nine_zip_admission_scanner_sha256",
+              "primary_analysis_sha256",
+              "sample_exposure_analysis_sha256",
               "source_manifest_sha256"):
         if approval.get(k)!=plan.get(k):
             raise PermissionError("Approval and 54-run plan revision differ on "+k)
+    # Freeze the exact statistical analysis code itself before any
+    # original target rows are examined, not merely FL engine and replay.
+    analysis_sources={
+        "primary_analysis_sha256":Path(__file__),
+        "sample_exposure_analysis_sha256":
+            Path(__file__).with_name("training_exposure_strata.py"),
+    }
+    for key,source in analysis_sources.items():
+        if plan.get(key)!=sha(source):
+            raise PermissionError("Pre-result Stage19 source was modified: "+key)
     # Read only after all 54 required receipts exist; never generate a
     # partial, cherry-picked 3- or 8-device significance test.
     for task in tasks:
