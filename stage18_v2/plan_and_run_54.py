@@ -154,6 +154,7 @@ def execute_tasks(args,plan):
             "--output-dir",str(folder),
             "--protocol",str(args.protocol),
             "--source-manifest",str(args.source_manifest),
+            "--source-cache-root",str(root/"_SOURCE_SAMPLE_CACHE_PRIVATE"),
             "--approval-gate",str(args.approval_gate),
             "--heldout",task["heldout_device"],
             "--method",task["method"],
