@@ -163,6 +163,46 @@ class UniformSamplingAndOptimizer(unittest.TestCase):
         self.assertEqual(len(set(receipt["sampled_raw_feature_digests"])),4)
         self.assertEqual(len(labels),4)
 
+    def test_immutable_source_cache_cold_vs_hit_and_native_byte_binding(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            cache=root/"cache"
+            device=e.native.DEVICES[1]
+            native_zip=root/(device+".zip")
+            native_zip.write_bytes(b"synthetic-source-ZIP-identity")
+            rng=np.random.default_rng(3107)
+            X=rng.normal(size=(12,e.N)).astype(np.float64)
+            y=np.asarray([0]*3+[1]*9,dtype=np.float32)
+            header=[f"feature_{i}" for i in range(e.N)]
+            rec={
+                "sample_size":12,
+                "sample_row_ids_sha256":"synthetic_row_hash",
+                "sampled_raw_feature_digests":e.raw_feature_digests(X),
+            }
+            with patch.object(e,"load_source_only",return_value=((X,y),rec,header)) as loader:
+                first, first_rec, first_header=e.load_source_with_verified_cache(
+                    root,device,12,3107,None,cache,None)
+                second, second_rec, second_header=e.load_source_with_verified_cache(
+                    root,device,12,3107,None,cache,None)
+                loader.assert_called_once()
+            self.assertEqual(first_rec["sample_cache_status"],"NEW_SOURCE_CACHE")
+            self.assertEqual(second_rec["sample_cache_status"],"VERIFIED_HIT")
+            np.testing.assert_array_equal(first[0],second[0])
+            np.testing.assert_array_equal(first[1],second[1])
+            self.assertEqual(first_header,second_header)
+            native_zip.write_bytes(b"synthetic-source-ZIP-CHANGED")
+            with self.assertRaisesRegex(ValueError,"Stale or tampered"):
+                e.load_source_with_verified_cache(
+                    root,device,12,3107,None,cache,None)
+
+    def test_cache_never_loads_heldout_in_source_loop(self):
+        target=e.native.DEVICES[0]
+        heldout_cache_name=f"{target}__seed3107__k12__float64_v1.npz"
+        self.assertNotIn(target,e.fold_sources(target))
+        self.assertTrue(all(
+            f"{source}__seed3107__k12__float64_v1.npz"!=heldout_cache_name
+            for source in e.fold_sources(target)))
+
     def test_adamw_fedprox_mu_zero_matches_fedavg(self):
         rng=np.random.default_rng(6)
         X=rng.normal(size=(25,e.N)).astype(np.float32)
