@@ -1,0 +1,89 @@
+name: AFRAS V2 Chat11 manifest + exact 54-task gate review (no data)
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - .github/workflows/afras-v2-chat11-manifest-review.yml
+permissions:
+  contents: read
+
+jobs:
+  independent-manifest-structure-and-plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install code-import requirements (no original ZIP downloaded)
+        run: |
+          python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r stage17_v2/requirements-pilot.txt
+          python -m compileall -q stage17_v2 stage18_v2
+          mkdir -p chat11_review
+      - name: Independently validate all nine user-archive manifest entries
+        run: |
+          python - <<'PY'
+          import json,re
+          from pathlib import Path
+          from sys import path
+          path.insert(0,"stage17_v2")
+          import source_only_pilot as n
+          file=Path("stage18_v2/ORIGINAL_NINE_LOCAL_ZIP_HASH_MANIFEST_2026-10-24.json")
+          p=json.loads(file.read_text())
+          assert p["record_status"]=="SOURCE_ATTESTATION_AUDIT_EVIDENCE_ONLY__NOT_FRESH_LOCAL_BYTE_VERIFICATION"
+          a=p["local_archives"]
+          assert len(a)==9 and [x["device"] for x in a]==list(n.DEVICES)
+          assert all(x["filename"]==x["device"]+".zip" for x in a)
+          assert all(re.fullmatch(r"[0-9a-f]{64}",x["local_sha256"]) for x in a)
+          assert all(isinstance(x["local_bytes"],int) and x["local_bytes"]>50000000 for x in a)
+          assert sum(x["local_bytes"] for x in a)==1773532530
+          print("CHAT11_NINE_ORIGINAL_LOCAL_ZIP_MANIFEST_RECORDS_VALID",len(a),
+                "expected_original_archive_bytes",sum(x["local_bytes"] for x in a))
+          PY
+      - name: Generate 54-task source-manifest-SHA-bound plan without any data
+        run: |
+          python stage18_v2/plan_and_run_54.py \
+            --source-manifest stage18_v2/ORIGINAL_NINE_LOCAL_ZIP_HASH_MANIFEST_2026-10-24.json \
+            --plan-output chat11_review/EXACT_54_TASKS_WITH_ORIGINAL_SOURCE_MANIFEST_SHA_NO_TEST.json
+      - name: Check no analysis results, review authorization or target labels created
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("chat11_review/EXACT_54_TASKS_WITH_ORIGINAL_SOURCE_MANIFEST_SHA_NO_TEST.json").read_text())
+          from hashlib import sha256
+          b=Path("stage18_v2/ORIGINAL_NINE_LOCAL_ZIP_HASH_MANIFEST_2026-10-24.json").read_bytes()
+          assert p["source_manifest_sha256"]==sha256(b).hexdigest()
+          assert p["runs_planned"]==54 and p["runs_executed_by_planner"]==0
+          assert p["human_approval_receipt_embedded"] is False
+          assert p["frozen_core_full_execution_authorized"] is False
+          assert len(p["tasks"])==len({t["task_id"] for t in p["tasks"]})==54
+          assert all(len(t["source_clients"])==8 and
+                     t["heldout_device"] not in t["source_clients"]
+                     for t in p["tasks"])
+          flags={
+            "record_type":"CHAT11_PRE_APPROVAL_NO_DATA_GATE",
+            "original_manifest_record_count":9,
+            "local_original_zip_bytes_rehashed_during_workflow":False,
+            "source_manifest_sha256":p["source_manifest_sha256"],
+            "source_manifest_authenticity":"Prior library audit only; local raw ZIP bytes must still be checked on execution machine",
+            "tasks_planned":54,
+            "actual_heldout_target_inferences":0,
+            "human_approval_received":False,
+            "permission_granted_for_target_scoring":False,
+            "stage18_execution_status":"BLOCKED_PENDING_REAL_REVIEW",
+          }
+          Path("chat11_review/CHAT11_GATE_STATUS.json").write_text(
+              json.dumps(flags,indent=2)+"\n")
+          print("CHAT11_MANIFEST_SHA_BOUND_54_RUN_PLAN_PASS",
+                p["source_manifest_sha256"], "NO_TARGET_SCORING")
+          PY
+      - name: Upload only digest metadata and 54 plan, not raw ZIPs
+        uses: actions/upload-artifact@v4
+        with:
+          name: afras-v2-chat11-nine-original-sha-and-54-task-plan-unapproved
+          path: chat11_review/
+          retention-days: 14

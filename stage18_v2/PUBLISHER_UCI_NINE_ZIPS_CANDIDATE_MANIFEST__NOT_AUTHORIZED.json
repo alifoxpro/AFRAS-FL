@@ -1,0 +1,67 @@
+{
+  "manifest_schema": "AFRAS_V2_ORIGINAL_NINE_DEVICE_ZIP_EXPECTED_BYTES_V1",
+  "record_status": "UNAPPROVED_PUBLISHER_UCI_NATIVE_MEMBERS_REPACKAGED_NINE_SOURCE_WRAPPERS",
+  "source": "UCI N-BaIoT DOI:10.24432/C5RC8J",
+  "official_download_sha256": "64929678b081d8e579a8d7c488cf11cc588403f282d5fb065b4156edbd55de9b",
+  "original_native_member_sha256_count": 25,
+  "historical_original_user_library_zip_wrappers_reproduced": false,
+  "human_authorization_granted": false,
+  "local_archives": [
+    {
+      "device": "Ennio_Doorbell",
+      "filename": "Ennio_Doorbell.zip",
+      "local_sha256": "5ca38b7163bb1ec38724cc6d645a0ab3993f818029837815e7b7cc21ab7c461e",
+      "local_bytes": 89660910
+    },
+    {
+      "device": "Samsung_SNH_1011_N_Webcam",
+      "filename": "Samsung_SNH_1011_N_Webcam.zip",
+      "local_sha256": "44fbe335a7b14bf7f54f4b8e234af4ce41b1332279d9f7004bb655267ea931f0",
+      "local_bytes": 109688657
+    },
+    {
+      "device": "Provision_PT_838_Security_Camera",
+      "filename": "Provision_PT_838_Security_Camera.zip",
+      "local_sha256": "81c48ab32610ed9d0e0774c5550071af9961b2e516f84304d1ac56fb49733d62",
+      "local_bytes": 272451546
+    },
+    {
+      "device": "Ecobee_Thermostat",
+      "filename": "Ecobee_Thermostat.zip",
+      "local_sha256": "dd188cfdb8aa1a14e131303b70f1d79a0bbfc359176ebc1afef23eedadcaee30",
+      "local_bytes": 237092673
+    },
+    {
+      "device": "Provision_PT_737E_Security_Camera",
+      "filename": "Provision_PT_737E_Security_Camera.zip",
+      "local_sha256": "90917da9bd47e2cb8fc523c362b6ec70884755f18bc294b9d74be5eb5778368b",
+      "local_bytes": 238549675
+    },
+    {
+      "device": "Danmini_Doorbell",
+      "filename": "Danmini_Doorbell.zip",
+      "local_sha256": "108bc91c3237aee98fe391d17e1c97e9e8d57dd0ed93846d80e824d744b92a1b",
+      "local_bytes": 288824294
+    },
+    {
+      "device": "Philips_B120N10_Baby_Monitor",
+      "filename": "Philips_B120N10_Baby_Monitor.zip",
+      "local_sha256": "31f6b10cdbd97719df5ce9ba3d77f7d65991dd07f3b2c09e93023488d80cd338",
+      "local_bytes": 443362338
+    },
+    {
+      "device": "SimpleHome_XCS7_1003_WHT_Security_Camera",
+      "filename": "SimpleHome_XCS7_1003_WHT_Security_Camera.zip",
+      "local_sha256": "058d15675285b25e7cfbc5c86f5ac47df273b9cd6cd000c23885c2be7c8be600",
+      "local_bytes": 243635395
+    },
+    {
+      "device": "SimpleHome_XCS7_1002_WHT_Security_Camera",
+      "filename": "SimpleHome_XCS7_1002_WHT_Security_Camera.zip",
+      "local_sha256": "6328f1c6d81c334af98b60c46ccace101a78992fdec88c2aa9891371a2be6e5d",
+      "local_bytes": 269962821
+    }
+  ],
+  "eligibility": "REQUIRES_RESPONSIBLE_HUMAN_PROVENANCE_REVIEW_BEFORE_ANY_54_TARGET_RUNS",
+  "warning": "Different outer ZIP SHA from prior user originals. The 25 canonical CSV/RAR members came from the same SHA-checked public UCI transport; file wrappers are newly constructed. This is an alternative candidate dataset route, not a fresh hash of the user Library's nine ZIPs."
+}

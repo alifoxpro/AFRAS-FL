@@ -1,0 +1,200 @@
+name: AFRAS V2 Chat21 Route B native-data and 13-SHA execution gate
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - .github/workflows/afras-v2-chat21-route-b-data-gate.yml
+      - stage18_v2/PUBLISHER_UCI_NINE_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json
+permissions:
+  contents: read
+jobs:
+  route-b-scientific-byte-and-native-support-admission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 95
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Pin execution imports, compile code, and create Route B 54-task PLAN ONLY
+        run: |
+          set -euxo pipefail
+          python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r stage17_v2/requirements-pilot.txt
+          python -m compileall -q stage17_v2 stage18_v2 stage19_v2
+          mkdir -p chat21_route_b_gate
+          python stage18_v2/plan_and_run_54.py \
+            --source-manifest stage18_v2/PUBLISHER_UCI_NINE_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json \
+            --plan-output chat21_route_b_gate/ROUTE_B_54_TASKS_13_SHA__NOT_AUTHORIZED.json
+      - name: Verify byte-exact Route B manifest, all 13 reviewed code/data files and runtime imports
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json,platform,subprocess,sys,ctypes.util
+          import numpy,pandas,torch,rarfile
+          base=Path("stage18_v2/PUBLISHER_UCI_NINE_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json")
+          manifest_sha=hashlib.sha256(base.read_bytes()).hexdigest()
+          assert manifest_sha=="4a67e3d78e75f5f771d19a8ea3bfef043a11110726fe48331583f6de414e2e6a",manifest_sha
+          m=json.loads(base.read_text())
+          assert m["record_status"]=="UNAPPROVED_PUBLISHER_UCI_NATIVE_MEMBERS_REPACKAGED_NINE_SOURCE_WRAPPERS"
+          assert m["human_authorization_granted"] is False
+          assert m["original_native_member_sha256_count"]==25
+          assert len(m["local_archives"])==9
+          plan=json.loads(Path("chat21_route_b_gate/ROUTE_B_54_TASKS_13_SHA__NOT_AUTHORIZED.json").read_text())
+          paths={
+            "protocol_sha256":"stage16_v2/FROZEN_CORE_PROTOCOL_V1_2026-10-24.json",
+            "engine_sha256":"stage18_v2/lodo_engine.py",
+            "replay_sha256":"stage18_v2/replay_predictions.py",
+            "native_loader_sha256":"stage17_v2/source_only_pilot.py",
+            "requirements_sha256":"stage17_v2/requirements-pilot.txt",
+            "native_inventory_sha256":"stage16_v2/EXPOSURE_ELIGIBILITY_ANALYSIS_ONLY.csv",
+            "orchestration_sha256":"stage18_v2/plan_and_run_54.py",
+            "exposure_analysis_protocol_sha256":"stage16_v2/PRE_RESULT_EXPOSURE_ESTIMAND_CLARIFICATION_2026-10-24.md",
+            "original_nine_zip_admission_scanner_sha256":"stage18_v2/verify_original_nine_zip_bytes.py",
+            "primary_analysis_sha256":"stage19_v2/independent_device_paired_analysis.py",
+            "sample_exposure_analysis_sha256":"stage19_v2/training_exposure_strata.py",
+            "full_source_exposure_analysis_sha256":"stage19_v2/full_source_vs_training_exposure.py",
+            "source_manifest_sha256":str(base),
+          }
+          assert len(paths)==13
+          for field,p in paths.items():
+              observed=hashlib.sha256(Path(p).read_bytes()).hexdigest()
+              assert plan[field]==observed,(field,observed,plan[field])
+          assert plan["status"]=="PLAN_ONLY__NO_TARGET_OPENED"
+          assert plan["runs_planned"]==54 and plan["runs_executed_by_planner"]==0
+          assert len(plan["tasks"])==len(set(x["task_id"] for x in plan["tasks"]))==54
+          assert plan["frozen_core_full_execution_authorized"] is False
+          assert ctypes.util.find_library("archive")
+          assert torch.__version__=="2.5.1+cpu"
+          assert numpy.__version__=="1.26.4" and pandas.__version__=="2.2.3"
+          receipt={
+            "status":"ROUTE_B_13_OF_13_FILE_SHAS_PLAN_PASS__NO_AUTHORIZATION",
+            "source_manifest_sha256":manifest_sha,
+            "code_commit":subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip(),
+            "python":sys.version,
+            "platform":platform.platform(),
+            "torch":torch.__version__,
+            "numpy":numpy.__version__,
+            "pandas":pandas.__version__,
+            "rarfile":rarfile.__version__,
+            "libarchive_present":True,
+            "exact_file_sha_count":13,
+            "heldout_scores":0,
+            "human_review_present":False,
+            "scientific_data_admission_decision":"PENDING_RESPONSIBLE_RESEARCHER"
+          }
+          Path("chat21_route_b_gate/RUNTIME_AND_13_SHA_REVIEW__NOT_AUTHORIZED.json").write_text(json.dumps(receipt,indent=2)+"\n")
+          print("ROUTE_B_13_SHA_EXACT_PLAN_PASS_54_TASKS_ZERO_TRAINING_ZERO_APPROVAL",flush=True)
+          PY
+      - name: Download original public UCI dataset with preaudited transport SHA
+        run: |
+          set -euxo pipefail
+          curl --fail --location --retry 3 --retry-delay 10 \
+            --speed-time 90 --speed-limit 1024 --max-time 1800 \
+            -o "$RUNNER_TEMP/uci_original.zip" \
+            'https://archive.ics.uci.edu/static/public/442/detection+of+iot+botnet+attacks+n+baiot.zip'
+          echo "UCI ORIGINAL TRANSPORT SHA"
+          sha256sum "$RUNNER_TEMP/uci_original.zip"
+      - name: Rewrap all 25 official native members, then independently require exact 9 published candidate ZIP SHAs
+        run: |
+          set -euxo pipefail
+          python stage18_v2/compare_official_uci_nine_original_archives.py \
+            --official-outer "$RUNNER_TEMP/uci_original.zip" \
+            --historical-original-manifest stage18_v2/ORIGINAL_NINE_LOCAL_ZIP_HASH_MANIFEST_2026-10-24.json \
+            --output-root "$RUNNER_TEMP/route_b_published_rebuild"
+          python - <<'PY'
+          from pathlib import Path
+          import json,hashlib,os,sys
+          sys.path.insert(0,"stage18_v2")
+          import verify_original_nine_zip_bytes as check
+          actual=Path(os.environ["RUNNER_TEMP"])/"route_b_published_rebuild"
+          pinned=Path("stage18_v2/PUBLISHER_UCI_NINE_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json")
+          regen=actual/"PUBLISHER_UCI_NINE_REPACKAGED_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json"
+          assert pinned.read_bytes()==regen.read_bytes(),"Route B reproducibility/pinning mismatch"
+          receipt=check.validate_original_source_manifest(actual/"rebuilt_official_device_archives",pinned)
+          assert receipt["original_zips_verified"]==9
+          assert receipt["origin"]=="PUBLISHER_UCI_REPACKAGED_NOT_USER_LIBRARY"
+          assert receipt["status"]=="ALL_NINE_PUBLISHER_REPACKAGED_CANDIDATE_ZIP_BYTES_MATCH_MANIFEST"
+          audit=json.loads((actual/"uci_original_native_member_comparison_receipt.json").read_text())
+          assert audit["official_native_member_count"]==25
+          assert audit["historical_outer_zip_exact_matches"]==0
+          old=json.loads(Path("stage18_v2/HISTORICAL_LOCAL_ORIGINAL_23_MEMBER_SHA256_CHAT6.json").read_text())
+          current={m["name"]:m for dev in audit["reconstructed_device_reports"]
+                   for m in dev["native_members_from_official_transport"]}
+          assert len(current)==25 and len(old["entries"])==23
+          for entry in old["entries"]:
+              c=current[entry["native_member"]]
+              assert c["source_member_sha256"]==entry["prior_local_original_member_sha256"]
+              assert c["source_member_bytes"]==entry["member_size_bytes"]
+          receipt["original_researcher_zip_wrappers_matched"]=0
+          receipt["historical_local_member_comparisons_matched"]=23
+          receipt["publisher_source_native_members_hashed"]=25
+          receipt["human_scientific_authorization"]=False
+          Path("chat21_route_b_gate/ROUTE_B_NINE_ZIP_BYTE_ADMISSION__NOT_APPROVAL.json").write_text(json.dumps(receipt,indent=2)+"\n")
+          print("ROUTE_B_9_WRAPPERS_25_UCI_MEMBERS_23_HISTORICAL_COMPARATORS_PASS_NO_APPROVAL",flush=True)
+          PY
+      - name: Verify 115 ordered native CSV feature headings and all nine device/class row supports before modeling
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import csv,hashlib,json,os,sys
+          sys.path.insert(0,"stage17_v2")
+          sys.path.insert(0,"stage18_v2")
+          import source_only_pilot as native
+          from replay_predictions import native_expected
+          root=Path(os.environ["RUNNER_TEMP"])/"route_b_published_rebuild/rebuilt_official_device_archives"
+          inventory=Path("stage16_v2/EXPOSURE_ELIGIBILITY_ANALYSIS_ONLY.csv")
+          names=None; total=0; results={}
+          for device in native.DEVICES:
+              counts={c:0 for c in native.LABELS}
+              seen=set()
+              for class_id,stream in native.iter_native_csv(root,device):
+                  if class_id in seen: raise ValueError("Repeated native class file "+device+"/"+class_id)
+                  seen.add(class_id)
+                  if isinstance(stream,(str,Path)):
+                      handle=open(stream,"rb"); close=True
+                  else:
+                      handle=stream; close=False
+                  try:
+                      first=handle.readline()
+                      if not first: raise ValueError("Empty header "+device+"/"+class_id)
+                      fields=next(csv.reader([first.decode("utf-8-sig").rstrip("\r\n")]))
+                      if len(fields)!=115 or len(set(fields))!=115: raise ValueError("Non-115 or duplicate native header")
+                      if names is None: names=fields
+                      if fields!=names: raise ValueError("Feature names/order differ "+device+"/"+class_id)
+                      lines=0; tail=b""; bytes_seen=0
+                      while True:
+                          data=handle.read(1<<20)
+                          if not data: break
+                          lines+=data.count(b"\n")
+                          bytes_seen+=len(data)
+                          tail=data[-1:]
+                      counts[class_id]=lines+int(bytes_seen>0 and tail!=b"\n")
+                  finally:
+                      if close: handle.close()
+              native_counts=native_expected(inventory,device)
+              if counts!=native_counts:
+                  raise ValueError("Native class row support mismatch "+device+
+                                   " actual="+repr(counts)+" historical="+repr(native_counts))
+              device_total=sum(counts.values())
+              total+=device_total
+              results[device]={"rows":device_total,"class_support":counts}
+              print("ROUTE_B_NATIVE_HEADER_AND_SUPPORT_PASS",device,device_total,flush=True)
+          assert len(results)==9 and total==7062606,total
+          evidence={"status":"ROUTE_B_ALL_NINE_NATIVE_HEADERS_AND_CLASS_ROW_SUPPORT_PASS",
+                   "devices":9,"original_native_members":25,
+                   "total_rows":total,"num_features":115,"native_classes":11,
+                   "ordered_feature_header_sha256":hashlib.sha256(("\\x1f".join(names)).encode()).hexdigest(),
+                   "results":results,
+                   "no_target_model_predictions":True,"human_approval_issued":False}
+          Path("chat21_route_b_gate/ROUTE_B_115_FEATURE_99_CLASS_CELL_NATIVE_ADMISSION.json").write_text(json.dumps(evidence,indent=2)+"\n")
+          PY
+      - name: Retain ONLY private-safe provenance, pinned plans, runtime and support counts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: afras-chat21-route-b-13-sha-9-device-native-support-NOT-AUTHORIZED
+          path: chat21_route_b_gate/
+          if-no-files-found: warn
+          retention-days: 15

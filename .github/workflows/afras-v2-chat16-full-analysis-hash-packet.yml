@@ -1,0 +1,86 @@
+name: AFRAS V2 Chat16 preregistered statistical SHA review packet
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - .github/workflows/afras-v2-chat16-full-analysis-hash-packet.yml
+permissions:
+  contents: read
+jobs:
+  immutable-protocol-analysis-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install exact CPU pilot code dependencies for offline planning
+        run: |
+          python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r stage17_v2/requirements-pilot.txt
+          python -m compileall -q stage18_v2 stage19_v2
+      - name: Generate all 54 planned tasks and pin Stage19 sources without touching N-BaIoT
+        run: |
+          mkdir -p chat16_review
+          python stage18_v2/plan_and_run_54.py \
+            --source-manifest stage18_v2/ORIGINAL_NINE_LOCAL_ZIP_HASH_MANIFEST_2026-10-24.json \
+            --plan-output chat16_review/EXACT_54_TASKS_WITH_ANALYSIS_SHA_NO_TEST.json
+          cp stage18_v2/NOT_AUTHORIZED_HUMAN_REVIEW_TEMPLATE.json chat16_review/NOT_AUTHORIZED_REVIEW_TEMPLATE.json
+          cp stage16_v2/FROZEN_CORE_PROTOCOL_V1_2026-10-24.json chat16_review/FROZEN_TRAINING_CORE.json
+          cp stage19_v2/PRE_RESULT_DEVICE_PAIRED_ANALYSIS_LOCK_2026-10-24.md chat16_review/PRIMARY_STATISTICS_PRE_RESULT_LOCK.md
+          cp stage19_v2/PRE_RESULT_ACTUAL_TRAINING_EXPOSURE_DIAGNOSTIC_LOCK_2026-10-24.md chat16_review/ACTUAL_TRAINING_EXPOSURE_PRE_RESULT_LOCK.md
+      - name: Verify primary, secondary, engine and protocol SHA pins
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          folder=Path("chat16_review")
+          plan=json.loads((folder/"EXACT_54_TASKS_WITH_ANALYSIS_SHA_NO_TEST.json").read_text())
+          review=json.loads((folder/"NOT_AUTHORIZED_REVIEW_TEMPLATE.json").read_text())
+          expected={
+              "protocol_sha256":"stage16_v2/FROZEN_CORE_PROTOCOL_V1_2026-10-24.json",
+              "engine_sha256":"stage18_v2/lodo_engine.py",
+              "replay_sha256":"stage18_v2/replay_predictions.py",
+              "native_loader_sha256":"stage17_v2/source_only_pilot.py",
+              "requirements_sha256":"stage17_v2/requirements-pilot.txt",
+              "native_inventory_sha256":"stage16_v2/EXPOSURE_ELIGIBILITY_ANALYSIS_ONLY.csv",
+              "orchestration_sha256":"stage18_v2/plan_and_run_54.py",
+              "exposure_analysis_protocol_sha256":"stage16_v2/PRE_RESULT_EXPOSURE_ESTIMAND_CLARIFICATION_2026-10-24.md",
+              "original_nine_zip_admission_scanner_sha256":"stage18_v2/verify_original_nine_zip_bytes.py",
+              "primary_analysis_sha256":"stage19_v2/independent_device_paired_analysis.py",
+              "sample_exposure_analysis_sha256":"stage19_v2/training_exposure_strata.py",
+              "source_manifest_sha256":"stage18_v2/ORIGINAL_NINE_LOCAL_ZIP_HASH_MANIFEST_2026-10-24.json",
+          }
+          for k,src in expected.items():
+              actual=hashlib.sha256(Path(src).read_bytes()).hexdigest()
+              assert actual==plan[k],f"Hash mismatch: {k}"
+              assert review.get(k) is None,f"Public review template must not contain completed authorization: {k}"
+          assert plan["runs_planned"]==54
+          assert plan["runs_executed_by_planner"]==0
+          assert len({r["task_id"] for r in plan["tasks"]})==54
+          assert review["authorized"] is False
+          assert review["human_review_complete"] is False
+          assert review["independent_data_admission_complete"] is False
+          status={
+              "research_stage":"STAGE18_ENGINEERING_AND_STAGE19_PRE_RESULT_HASH_FREEZE",
+              "sha_files_checked":len(expected),
+              "number_of_planned_unique_tasks":54,
+              "original_nine_zip_bytes_recomputed":False,
+              "original_nine_zip_replay_tested":False,
+              "native_heldout_test_runs_completed":0,
+              "qualified_human_scientific_review_present":False,
+              "target_test_authorized_by_packet":False,
+              "code_source_commit":__import__("subprocess").check_output(
+                  ["git","rev-parse","HEAD"],text=True).strip()
+          }
+          (folder/"CHAT16_PRE_RESULT_HASH_STATUS.json").write_text(json.dumps(status,indent=2))
+          print("CHAT16_12_OF_12_SOURCE_HASHES_MATCH_PLAN__54_TASKS_UNEXECUTED",flush=True)
+          PY
+      - name: Publish no-data/no-target reviewer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: afras-v2-chat16-54task-primary-secondary-analysis-hash-freeze-review
+          path: chat16_review/
+          retention-days: 15

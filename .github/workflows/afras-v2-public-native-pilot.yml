@@ -1,0 +1,74 @@
+name: AFRAS V2 official UCI native weighted-loss source-only pilot
+
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - .github/workflows/afras-v2-public-native-pilot.yml
+
+permissions:
+  contents: read
+
+jobs:
+  official-source-pilot:
+    name: Real UCI native ZIP+RAR source-only *class-weighted* FL feasibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python scientific runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install native RAR and scientific dependencies
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r stage17_v2/requirements-pilot.txt
+          python -c "import ctypes.util; print('libarchive:', ctypes.util.find_library('archive'))"
+          test -n "$(ldconfig -p | grep 'libarchive.so' | head -1)"
+      - name: Download official public UCI N-BaIoT dataset
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl --fail --location --retry 3 --retry-delay 10 --speed-time 90 --speed-limit 1024 --max-time 1800 \
+            --output "$RUNNER_TEMP/afras_v2_uci_outer.zip" \
+            'https://archive.ics.uci.edu/static/public/442/detection+of+iot+botnet+attacks+n+baiot.zip'
+          ls -lh "$RUNNER_TEMP/afras_v2_uci_outer.zip"
+          mkdir -p stage17_v2_artifacts "$RUNNER_TEMP/afras_v2_sources"
+      - name: Stage only eight UCI source-device members and record provenance
+        run: |
+          set -euxo pipefail
+          python stage17_v2/prepare_uci_public_sources.py \
+            --outer-zip "$RUNNER_TEMP/afras_v2_uci_outer.zip" \
+            --source-root "$RUNNER_TEMP/afras_v2_sources" \
+            --heldout Ennio_Doorbell \
+            --validation Samsung_SNH_1011_N_Webcam \
+            --record stage17_v2_artifacts/source_member_provenance.json
+      - name: Run real source-only FedAvg/FedProx native-format feasibility pilot
+        run: |
+          set -euxo pipefail
+          python stage17_v2/source_only_pilot.py \
+            --source-root "$RUNNER_TEMP/afras_v2_sources" \
+            --heldout Ennio_Doorbell \
+            --validation Samsung_SNH_1011_N_Webcam \
+            --max-per-class 128 \
+            --rounds 3 \
+            --local-epochs 1 \
+            --batch-size 128 \
+            --lr 0.01 \
+            --fedprox-mu 0.01 \
+            --loss-balance inverse-prevalence \
+            --seed 3107 \
+            --backend cpu \
+            --output stage17_v2_artifacts/source_only_exploratory_pilot_weighted.json
+      - name: Store *summary only* artifacts (no source observations or datasets)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: afras-v2-official-source-exploratory-weighted-loss-evidence
+          path: stage17_v2_artifacts/*.json
+          if-no-files-found: warn
+          retention-days: 7

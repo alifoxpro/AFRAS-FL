@@ -1,0 +1,65 @@
+{
+  "manifest_schema": "AFRAS_V2_ORIGINAL_NINE_DEVICE_ZIP_EXPECTED_BYTES_V1",
+  "record_status": "SOURCE_ATTESTATION_AUDIT_EVIDENCE_ONLY__NOT_FRESH_LOCAL_BYTE_VERIFICATION",
+  "source": "AFRAS_V2_CHAT6_SOURCE_INTEGRITY_RECONCILIATION.json (user original nine library ZIPs, 2026-10-24)",
+  "prior_audit_matches": 9,
+  "expected_all_archives_local": true,
+  "local_archives": [
+    {
+      "device": "Ennio_Doorbell",
+      "filename": "Ennio_Doorbell.zip",
+      "local_sha256": "38dd0bb1ed69a412dc005933243b46070be92c1a9b7a39275d5a7445e9c98795",
+      "local_bytes": 62909588
+    },
+    {
+      "device": "Samsung_SNH_1011_N_Webcam",
+      "filename": "Samsung_SNH_1011_N_Webcam.zip",
+      "local_sha256": "e0818e8e1327b719ad5937256b3b26751c8ca66ab70711a256163e79b4fe88f8",
+      "local_bytes": 67522861
+    },
+    {
+      "device": "Provision_PT_838_Security_Camera",
+      "filename": "Provision_PT_838_Security_Camera.zip",
+      "local_sha256": "2db97fdadf629efeec2bcaf1a422f6db6b360d3257561647a688368d9c01b45e",
+      "local_bytes": 202247780
+    },
+    {
+      "device": "Ecobee_Thermostat",
+      "filename": "Ecobee_Thermostat.zip",
+      "local_sha256": "14d135f2dc88c83ff572f6dd04a9fd7df1e7aa331d0ddc2c2857da7e1917c855",
+      "local_bytes": 226251504
+    },
+    {
+      "device": "Provision_PT_737E_Security_Camera",
+      "filename": "Provision_PT_737E_Security_Camera.zip",
+      "local_sha256": "54e00877019654d4fd96ac40c6548523c5faa5d469932575f4f4ab28f7d82253",
+      "local_bytes": 193069225
+    },
+    {
+      "device": "Danmini_Doorbell",
+      "filename": "Danmini_Doorbell.zip",
+      "local_sha256": "603a943c518c6763bbb142d6291686e8e3c3b3c95aae6dac9e2f756de50c80fd",
+      "local_bytes": 253284158
+    },
+    {
+      "device": "Philips_B120N10_Baby_Monitor",
+      "filename": "Philips_B120N10_Baby_Monitor.zip",
+      "local_sha256": "d9997ff3c5a3af2992970a060c75210f659b0de5d35a6c842c126141d29e830d",
+      "local_bytes": 303594558
+    },
+    {
+      "device": "SimpleHome_XCS7_1003_WHT_Security_Camera",
+      "filename": "SimpleHome_XCS7_1003_WHT_Security_Camera.zip",
+      "local_sha256": "8160df04be854e274c9786561b5fdf84ed6f1214f2ca5952a5f213c8359b2b42",
+      "local_bytes": 229226415
+    },
+    {
+      "device": "SimpleHome_XCS7_1002_WHT_Security_Camera",
+      "filename": "SimpleHome_XCS7_1002_WHT_Security_Camera.zip",
+      "local_sha256": "bded51dd0199ca54759ec33aa0b57b68c463a1cd0acd3c4339b81c3038d718c4",
+      "local_bytes": 235426441
+    }
+  ],
+  "usage": "Verify same original nine ZIPs independently in the execution environment before target test; checksum alone is not human authorization.",
+  "public_uci_original_outer_sha256": "64929678b081d8e579a8d7c488cf11cc588403f282d5fb065b4156edbd55de9b"
+}

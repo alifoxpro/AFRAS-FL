@@ -1,0 +1,75 @@
+name: AFRAS V2 Chat27 verify repaired operator Route B on real UCI source
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - .github/workflows/afras-v2-chat27-route-b-operator-rebuild.yml
+      - operator_chat27/PREPARE_ROUTE_B_NATIVE_BYTES.sh
+permissions:
+  contents: read
+jobs:
+  real-uci-rebuild:
+    name: Prove fixed operator works on real 25-member UCI source without fitting
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify shell syntax and candidate manifest still unapproved
+        run: |
+          set -euxo pipefail
+          bash -n operator_chat27/PREPARE_ROUTE_B_NATIVE_BYTES.sh
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          m=Path('stage18_v2/PUBLISHER_UCI_NINE_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json')
+          assert hashlib.sha256(m.read_bytes()).hexdigest()=='4a67e3d78e75f5f771d19a8ea3bfef043a11110726fe48331583f6de414e2e6a'
+          assert json.loads(m.read_text())['human_authorization_granted'] is False
+          print('ROUTE_B_FROZEN_MANIFEST__NOT_AUTHORIZED')
+          PY
+      - name: Download and reconstruct actual UCI publisher bytes through repaired operator
+        run: |
+          set -euxo pipefail
+          AFRAS_REPO="$GITHUB_WORKSPACE" bash operator_chat27/PREPARE_ROUTE_B_NATIVE_BYTES.sh "$RUNNER_TEMP/route_b_native"
+      - name: Verify real nine output ZIPs and correct final locations, with no ML target scoring
+        run: |
+          python - <<'PY'
+          import os,json,hashlib,sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'route_b_native'
+          zips=root/'rebuilt_official_device_archives'
+          assert zips.is_dir()
+          assert not (root/'.route_b_build_staging').exists()
+          manifest=Path('stage18_v2/PUBLISHER_UCI_NINE_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json')
+          assert (root/'PUBLISHER_UCI_NINE_REPACKAGED_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json').read_bytes()==manifest.read_bytes()
+          sys.path.insert(0,'stage18_v2')
+          from verify_original_nine_zip_bytes import validate_original_source_manifest
+          r=validate_original_source_manifest(zips,manifest)
+          assert r['original_zips_verified']==9
+          assert r['status']=='ALL_NINE_PUBLISHER_REPACKAGED_CANDIDATE_ZIP_BYTES_MATCH_MANIFEST'
+          audit=json.loads((root/'uci_original_native_member_comparison_receipt.json').read_text())
+          assert audit['official_native_member_count']==25
+          assert audit['actual_native_test_rows_scored']==0
+          assert audit['research_authorization_granted'] is False
+          assert len(list(zips.glob('*.zip')))==9
+          receipt={'status':'CHAT27_FIXED_OPERATOR_9_REPACKAGED_UCI_WRAPPERS_PASS_NO_MODEL',
+                   'original_transport_sha256':audit['downloaded_original_transport_sha256'],
+                   'source_manifest_sha256':hashlib.sha256(manifest.read_bytes()).hexdigest(),
+                   'original_source_native_members':25,
+                   'nine_zip_bytes_verified':9,
+                   'human_authorization_granted':False,
+                   'target_scored':0}
+          Path('chat27_receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          print('CHAT27_REAL_UCI_FIXED_OPERATOR_9_ZIPS_PASS__ZERO_TARGET__NO_APPROVAL')
+          PY
+      - name: Upload evidence metadata only; never native data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: afras-chat27-fixed-route-b-real-source-operator-no-target
+          path: chat27_receipt.json
+          retention-days: 15
+          if-no-files-found: warn

@@ -1,0 +1,97 @@
+name: AFRAS V2 Chat19 current full research code SHA-bound review packet
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - .github/workflows/afras-v2-chat19-current-thirteen-sha-review.yml
+      - stage18_v2/verify_original_nine_zip_bytes.py
+permissions:
+  contents: read
+jobs:
+  current-full-release-hash-admission:
+    name: Verify 13 code+manifest SHA and 54 planned tasks WITHOUT data or approval
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install same pinned scientific import dependencies; no original archive download
+        run: |
+          set -euxo pipefail
+          python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r stage17_v2/requirements-pilot.txt
+          python -m compileall -q stage18_v2 stage19_v2
+      - name: Generate current SHA-bound 54 task plan; NO model fitting
+        run: |
+          set -euxo pipefail
+          mkdir -p chat19_reviewer_packet
+          python stage18_v2/plan_and_run_54.py \
+            --source-manifest stage18_v2/ORIGINAL_NINE_LOCAL_ZIP_HASH_MANIFEST_2026-10-24.json \
+            --plan-output chat19_reviewer_packet/EXACT_54_TASKS_AND_13_CURRENT_SHAS_NOT_AUTHORIZED.json
+          cp stage18_v2/NOT_AUTHORIZED_HUMAN_REVIEW_TEMPLATE.json \
+            chat19_reviewer_packet/HUMAN_REVIEW_REQUIRED__NOT_AUTHORIZED.json
+          cp stage16_v2/FROZEN_CORE_PROTOCOL_V1_2026-10-24.json \
+            chat19_reviewer_packet/FROZEN_CORE_UNCHANGED.json
+          cp stage16_v2/PRE_RESULT_EXPOSURE_ESTIMAND_CLARIFICATION_2026-10-24.md \
+            chat19_reviewer_packet/ORIGINAL_VS_ACTUAL_SOURCE_EXPOSURE_CLARIFICATION.md
+      - name: Independently rehash all 13 exact source files and assert 0/54 execution
+        run: |
+          python - <<'PY'
+          import hashlib, json, subprocess
+          from pathlib import Path
+          root=Path("chat19_reviewer_packet")
+          p=json.loads((root/"EXACT_54_TASKS_AND_13_CURRENT_SHAS_NOT_AUTHORIZED.json").read_text())
+          t=json.loads((root/"HUMAN_REVIEW_REQUIRED__NOT_AUTHORIZED.json").read_text())
+          fields={
+              "protocol_sha256":"stage16_v2/FROZEN_CORE_PROTOCOL_V1_2026-10-24.json",
+              "engine_sha256":"stage18_v2/lodo_engine.py",
+              "replay_sha256":"stage18_v2/replay_predictions.py",
+              "native_loader_sha256":"stage17_v2/source_only_pilot.py",
+              "requirements_sha256":"stage17_v2/requirements-pilot.txt",
+              "native_inventory_sha256":"stage16_v2/EXPOSURE_ELIGIBILITY_ANALYSIS_ONLY.csv",
+              "orchestration_sha256":"stage18_v2/plan_and_run_54.py",
+              "exposure_analysis_protocol_sha256":"stage16_v2/PRE_RESULT_EXPOSURE_ESTIMAND_CLARIFICATION_2026-10-24.md",
+              "original_nine_zip_admission_scanner_sha256":"stage18_v2/verify_original_nine_zip_bytes.py",
+              "primary_analysis_sha256":"stage19_v2/independent_device_paired_analysis.py",
+              "sample_exposure_analysis_sha256":"stage19_v2/training_exposure_strata.py",
+              "full_source_exposure_analysis_sha256":"stage19_v2/full_source_vs_training_exposure.py",
+              "source_manifest_sha256":"stage18_v2/ORIGINAL_NINE_LOCAL_ZIP_HASH_MANIFEST_2026-10-24.json",
+          }
+          assert len(fields)==13
+          for field,path in fields.items():
+              digest=hashlib.sha256(Path(path).read_bytes()).hexdigest()
+              assert p[field]==digest,(field,"hash diverged from task plan")
+              assert t.get(field) is None,(field,"template cannot be preauthorized")
+          assert p["status"]=="PLAN_ONLY__NO_TARGET_OPENED"
+          assert p["runs_planned"]==54 and p["runs_executed_by_planner"]==0
+          assert p["frozen_core_full_execution_authorized"] is False
+          assert len(p["tasks"])==54
+          assert len({q["task_id"] for q in p["tasks"]})==54
+          assert t["authorized"] is False
+          assert t["human_review_complete"] is False
+          assert t["independent_data_admission_complete"] is False
+          assert t["no_target_results_reviewed"] is True
+          status={
+              "status":"CURRENT_13_REVIEWED_FILES_AND_54_PLANNED_TASKS__NO_EXECUTION",
+              "git_commit":subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip(),
+              "exact_file_hashes_count":13,
+              "original_nine_library_zip_hashes_recomputed":False,
+              "original_nine_zip_local_manifest_historical_only":True,
+              "native_heldout_confirmatory_runs":0,
+              "human_scientific_authorization":False,
+              "cannot_self_authorize":True,
+              "ready_for_real_human_review":True,
+              "artifact_access":"REVIEW_METADATA_ONLY_NO_RAW_NBAIOT",
+          }
+          (root/"CHAT19_CRITICAL_GATE_STATUS.json").write_text(json.dumps(status,indent=2)+"\n")
+          print("CHAT19_13_OF_13_EXACT_SOURCE_HASHES_AND_54_TASK_PLAN_PASS__0_TARGET__NO_APPROVAL")
+          PY
+      - name: Preserve only plan and unapproved reviewer metadata; never original data
+        uses: actions/upload-artifact@v4
+        with:
+          name: afras-chat19-13-source-sha-54-task-scientific-review-not-authorized
+          path: chat19_reviewer_packet/
+          retention-days: 15

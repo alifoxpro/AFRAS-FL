@@ -1,0 +1,96 @@
+{
+  "protocol_id": "AFRAS_V2_STAGE16_CANDIDATE_20261024",
+  "freeze_status": "NOT_FROZEN",
+  "use_for_confirmatory_execution": false,
+  "study": "Data-centric class-conditional exact-feature recurrence in federated N-BaIoT IDS",
+  "data": {
+    "source": "UCI N-BaIoT",
+    "doi": "10.24432/C5RC8J",
+    "native_feature_count": 115,
+    "devices": [
+      "Ennio_Doorbell",
+      "Samsung_SNH_1011_N_Webcam",
+      "Provision_PT_838_Security_Camera",
+      "Ecobee_Thermostat",
+      "Provision_PT_737E_Security_Camera",
+      "Danmini_Doorbell",
+      "Philips_B120N10_Baby_Monitor",
+      "SimpleHome_XCS7_1003_WHT_Security_Camera",
+      "SimpleHome_XCS7_1002_WHT_Security_Camera"
+    ],
+    "original_target_testing": "full original device, native class prevalence, no filtering"
+  },
+  "source_only_training": {
+    "clients_per_fold": 8,
+    "training_sampling": "Uniform within each source device, not class balanced or per-class quota",
+    "provisional_max_rows_per_device": 30000,
+    "preprocess": "asinh then source-only fitted mean and std",
+    "binary_class_weighting": "per-client negative/positive counts"
+  },
+  "model": {
+    "architecture": [
+      115,
+      64,
+      32,
+      1
+    ],
+    "relu": true,
+    "output": "one binary logit",
+    "threshold": 0.5
+  },
+  "methods": [
+    {
+      "name": "FedAvg",
+      "aggregation": "source train sample count weighted"
+    },
+    {
+      "name": "FedProx",
+      "proximal_mu": 0.01,
+      "aggregation": "same as FedAvg"
+    }
+  ],
+  "optimization_candidate": {
+    "optimizer": "AdamW",
+    "lr": 0.001,
+    "weight_decay": 0,
+    "fl_rounds": 5,
+    "local_epochs": 3,
+    "batch_size": 128,
+    "seeds": [
+      3107,
+      3108,
+      3109
+    ],
+    "no_test_early_stopping": true,
+    "profile_pending": true
+  },
+  "prospective_primary": {
+    "endpoint": "device-balanced-accuracy",
+    "contrast": "FedProx-FedAvg",
+    "independent_units": "nine devices; seed runs averaged within device"
+  },
+  "exposure_analysis": {
+    "exact_vector_hash_match_between_target_and_eight_sources": true,
+    "analysis_only": true,
+    "eligible_attack_device_class_cells": 42,
+    "recurrent_only_attack_cells": 38,
+    "structurally_absent_attack_cells": 10,
+    "recurrent_benign_rows": 6,
+    "unestimable_token": "NON_ESTIMABLE"
+  },
+  "prohibited": [
+    "Heldout data in preprocessing fit",
+    "Target metric for tuning hyperparameters",
+    "Target-side class balancing",
+    "Recurrent-benign FPR stability claim",
+    "Treating repeated seeds as independent devices",
+    "Claiming official fuzzy algorithm novelty",
+    "Calling pilots confirmatory"
+  ],
+  "disclosures": [
+    "Source-only pilot used Samsung to select learnable optimizer; the subsequent Samsung target cannot be called historically blind",
+    "Ennio target never scored in source pilot; prior target-exposure class census available",
+    "Public UCI raw member provenance 25/25; old SQL benign sha256 fields superseded but not mutated",
+    "Test feature recurrence not identical captured-event evidence"
+  ]
+}

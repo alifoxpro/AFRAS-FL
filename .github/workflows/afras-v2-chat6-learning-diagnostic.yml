@@ -1,0 +1,81 @@
+name: AFRAS V2 Chat6 real source learning-collapse diagnosis
+
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - .github/workflows/afras-v2-chat6-learning-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  source-only-learning-diagnostic:
+    name: Real 8-source UCI train-vs-validation diagnosis (NO target test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: CPU runtime and RAR requirements
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r stage17_v2/requirements-pilot.txt
+          python -m compileall -q stage17_v2
+          python -c 'import ctypes.util; assert ctypes.util.find_library("archive")'
+      - name: Download original public UCI N-BaIoT ZIP
+        run: |
+          set -euxo pipefail
+          curl --fail --location --retry 3 --retry-delay 10 \
+            --speed-time 90 --speed-limit 1024 --max-time 1800 \
+            --output "$RUNNER_TEMP/uci_outer.zip" \
+            'https://archive.ics.uci.edu/static/public/442/detection+of+iot+botnet+attacks+n+baiot.zip'
+          mkdir -p "$RUNNER_TEMP/afras_sources" stage17_v2_chat6_output
+      - name: Extract only source member bytes and verify public outer-archive hash
+        run: |
+          set -euxo pipefail
+          python stage17_v2/prepare_uci_public_sources.py \
+            --outer-zip "$RUNNER_TEMP/uci_outer.zip" \
+            --source-root "$RUNNER_TEMP/afras_sources" \
+            --heldout Ennio_Doorbell \
+            --validation Samsung_SNH_1011_N_Webcam \
+            --record stage17_v2_chat6_output/source_provenance.json
+          python - <<'PY'
+          import json
+          o=json.load(open("stage17_v2_chat6_output/source_provenance.json"))
+          # The same public UCI transport observed by independently executed prior source-only runs
+          assert o["outer_archive_sha256"]=="64929678b081d8e579a8d7c488cf11cc588403f282d5fb065b4156edbd55de9b", "PUBLIC_SOURCE_BYTES_CHANGED"
+          assert o["heldout_member_contents_opened"] is False
+          assert len(o["device_files"])==8
+          print("PUBLIC_UCI_OUTER_SOURCE_SHA_MATCH",o["outer_archive_sha256"],flush=True)
+          PY
+      - name: Diagnose train vs source-held-out performance and local-vs-global behavior
+        run: |
+          set -euxo pipefail
+          python stage17_v2/diagnose_train_vs_validation.py \
+            --source-root "$RUNNER_TEMP/afras_sources" \
+            --heldout Ennio_Doorbell \
+            --validation Samsung_SNH_1011_N_Webcam \
+            --max-per-class 128 \
+            --rounds 3 \
+            --local-epochs 1 \
+            --batch-size 128 \
+            --lr 0.01 \
+            --fedprox-mu 0.01 \
+            --seed 3107 \
+            --backend cpu \
+            --output stage17_v2_chat6_output/train_vs_validation_real_uci.json
+      - name: Store source-only numerical summaries and provenance, no raw features
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: afras-v2-chat6-train-vs-source-validation-real-uci-evidence
+          path: stage17_v2_chat6_output/*.json
+          if-no-files-found: warn
+          retention-days: 7
