@@ -5,6 +5,7 @@ on:
       - research/afras-v2-stage17-source-only-pilot-20261024
     paths:
       - .github/workflows/afras-v2-chat18-official-nine-member-byte-admission.yml
+      - stage18_v2/compare_official_uci_nine_original_archives.py
 permissions:
   contents: read
 jobs:
