@@ -292,7 +292,7 @@ def write_all_target_predictions(root: Path, heldout: str, state,
     model=native.BinaryMLP()
     model.load_state_dict(state)
     model.eval()
-    class_counts={}
+    class_counts={label:0 for label in native.LABELS}
     output.parent.mkdir(parents=True,exist_ok=True)
     # output must not be an existing unverified or partial result
     with gzip.open(output,"xt",encoding="utf8",newline="",compresslevel=3) as dest:
