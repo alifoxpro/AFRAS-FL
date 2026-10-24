@@ -1,0 +1,55 @@
+name: AFRAS V2 Chat13 Windows original ZIP SHA scanner QA
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - .github/workflows/afras-v2-chat13-windows-zip-byte-gate.yml
+      - stage18_v2/verify_original_nine_zip_bytes_windows.ps1
+permissions:
+  contents: read
+jobs:
+  source-zip-scanner-test:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate nine synthetic device-archive fixtures
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:RUNNER_TEMP 'afras_v2_synthetic_zips'
+          New-Item -ItemType Directory -Path $dir -Force | Out-Null
+          $devs = @('Ennio_Doorbell','Samsung_SNH_1011_N_Webcam','Provision_PT_838_Security_Camera','Ecobee_Thermostat','Provision_PT_737E_Security_Camera','Danmini_Doorbell','Philips_B120N10_Baby_Monitor','SimpleHome_XCS7_1003_WHT_Security_Camera','SimpleHome_XCS7_1002_WHT_Security_Camera')
+          $rows = @()
+          foreach ($dev in $devs) {
+            $filename = "$dev.zip"
+            $path = Join-Path $dir $filename
+            [System.IO.File]::WriteAllBytes($path,[System.Text.Encoding]::UTF8.GetBytes("SYNTHETIC-QA-ONLY:$dev"))
+            $digest = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+            $rows += @{ device = $dev; filename = $filename; local_sha256 = $digest; local_bytes = (Get-Item $path).Length }
+          }
+          @{ manifest_schema = 'AFRAS_V2_ORIGINAL_NINE_DEVICE_ZIP_EXPECTED_BYTES_V1'; local_archives = $rows } | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 -LiteralPath (Join-Path $env:RUNNER_TEMP 'synthetic_manifest.json')
+          echo "QA_DIR=$dir" >> $env:GITHUB_ENV
+      - name: Admit correct synthetic bytes without issuing any human approval
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & pwsh -NoProfile -File stage18_v2/verify_original_nine_zip_bytes_windows.ps1 -SourceRoot $env:QA_DIR -Manifest (Join-Path $env:RUNNER_TEMP 'synthetic_manifest.json') -Receipt (Join-Path $env:RUNNER_TEMP 'valid_receipt.json')
+          if ($LASTEXITCODE -ne 0) { throw 'Synthetic nine-ZIP positive test failed' }
+          $receipt=Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'valid_receipt.json') -Raw | ConvertFrom-Json
+          if ($receipt.original_zips_verified -ne 9) { throw 'Nine synthetic files not admitted' }
+          if ($receipt.heldout_model_predictions_generated -ne $false) { throw 'Incorrect test-status flag' }
+          if ($receipt.human_scientific_approval_created -ne $false) { throw 'Incorrect human approval flag' }
+          Write-Output 'CHAT13_WINDOWS_POWERSHELL_SYNTHETIC_9_OF_9_SHA256_GATE_PASS'
+      - name: Refuse modified bytes and create no false-pass receipt
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $path = Join-Path $env:QA_DIR 'Ennio_Doorbell.zip'
+          [System.IO.File]::WriteAllBytes($path,[System.Text.Encoding]::UTF8.GetBytes('SYNTHETIC-CORRUPTED-NBAIOT-BYTES'))
+          $bad = Join-Path $env:RUNNER_TEMP 'should_not_exist_receipt.json'
+          & pwsh -NoProfile -File stage18_v2/verify_original_nine_zip_bytes_windows.ps1 -SourceRoot $env:QA_DIR -Manifest (Join-Path $env:RUNNER_TEMP 'synthetic_manifest.json') -Receipt $bad
+          if ($LASTEXITCODE -eq 0) { throw 'Corrupted ZIP erroneously accepted' }
+          if (Test-Path -LiteralPath $bad) { throw 'Invalid data generated a false-pass receipt' }
+          Write-Output 'CHAT13_WINDOWS_CORRUPTED_ARCHIVE_FAIL_CLOSED_PASS'
