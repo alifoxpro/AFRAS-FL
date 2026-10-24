@@ -31,7 +31,7 @@ class FrozenPlanTests(unittest.TestCase):
         self.assertEqual(p["runs_planned"],54)
         self.assertEqual(p["runs_executed_by_planner"],0)
         self.assertEqual(p["status"],"PLAN_ONLY__NO_TARGET_OPENED")
-        self.assertIsNone(p["manifest_sha256"])
+        self.assertIsNone(p["source_manifest_sha256"])
 
     def test_execution_rejected_without_human_gate_or_manifest(self):
         args=argparse.Namespace(
@@ -56,6 +56,14 @@ class FrozenPlanTests(unittest.TestCase):
                 "protocol_sha256":engine.file_sha256(engine.CORE),
                 "engine_sha256":engine.file_sha256(Path(engine.__file__)),
                 "replay_sha256":engine.file_sha256(engine.REPLAY),
+                "native_loader_sha256":engine.file_sha256(Path(engine.native.__file__)),
+                "requirements_sha256":engine.file_sha256(
+                    engine.ROOT/"stage17_v2"/"requirements-pilot.txt"),
+                "native_inventory_sha256":engine.file_sha256(
+                    engine.ROOT/"stage16_v2"/"EXPOSURE_ELIGIBILITY_ANALYSIS_ONLY.csv"),
+                "human_review_complete":True,
+                "independent_data_admission_complete":True,
+                "no_target_results_reviewed":True,
                 "source_manifest_sha256":"0"*64,
             }),encoding="utf8")
             args=argparse.Namespace(
@@ -66,6 +74,30 @@ class FrozenPlanTests(unittest.TestCase):
                 with self.assertRaisesRegex(PermissionError,"not the approved"):
                     plan.execute_tasks(args,plan.create_plan())
             self.assertFalse(args.output_root.exists())
+
+    def test_review_attestation_required_even_with_all_hashes_correct(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base=Path(tmp)
+            receipt=base/"unapproved.json"
+            fields={
+                "status":"AUTHORIZED_FOR_CONFIRMATORY_TEST",
+                "authorized":True,
+                "approved_by":"synthetic-test-reviewer",
+                "protocol_sha256":engine.file_sha256(engine.CORE),
+                "engine_sha256":engine.file_sha256(Path(engine.__file__)),
+                "replay_sha256":engine.file_sha256(engine.REPLAY),
+                "native_loader_sha256":engine.file_sha256(Path(engine.native.__file__)),
+                "requirements_sha256":engine.file_sha256(
+                    engine.ROOT/"stage17_v2"/"requirements-pilot.txt"),
+                "native_inventory_sha256":engine.file_sha256(
+                    engine.ROOT/"stage16_v2"/"EXPOSURE_ELIGIBILITY_ANALYSIS_ONLY.csv"),
+                "human_review_complete":False,
+                "independent_data_admission_complete":True,
+                "no_target_results_reviewed":True,
+            }
+            receipt.write_text(json.dumps(fields))
+            with self.assertRaises(PermissionError):
+                engine.assert_approval(receipt,engine.CORE)
 
     def test_existing_partial_run_not_skipped(self):
         task=plan.locked_tasks()[0]
