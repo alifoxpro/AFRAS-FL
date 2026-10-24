@@ -27,14 +27,21 @@ The normal confirmatory mode **always rejects** missing, malformed or stale auth
 {
   "status": "AUTHORIZED_FOR_CONFIRMATORY_TEST",
   "authorized": true,
-  "approved_by": "<human responsible researcher / supervisor>",
+  "approved_by": "<responsible human researcher / supervisor>",
+  "human_review_complete": true,
+  "independent_data_admission_complete": true,
+  "no_target_results_reviewed": true,
   "protocol_sha256": "<actual frozen protocol file SHA-256>",
   "engine_sha256": "<actual reviewed lodo_engine.py SHA-256>",
-  "replay_sha256": "<actual reviewed replay_predictions.py SHA-256>"
+  "replay_sha256": "<actual reviewed replay_predictions.py SHA-256>",
+  "native_loader_sha256": "<actual reviewed stage17_v2/source_only_pilot.py SHA-256>",
+  "requirements_sha256": "<actual requirements-pilot.txt SHA-256>",
+  "native_inventory_sha256": "<actual Stage16 analysis-only inventory SHA-256>",
+  "source_manifest_sha256": "<actual original nine-local-ZIP manifest SHA-256>"
 }
 ```
 
-This JSON is an auditable approval **receipt, not a cryptographic signature**. This repository does not fabricate an authorized receipt. Until scientific and code review, DO NOT run `--mode confirmatory`, create an approval receipt, or inspect target accuracy.
+This JSON is an auditable approval **receipt, not a cryptographic signature**. This repository does not fabricate an authorized receipt. Use `stage18_v2/NOT_AUTHORIZED_HUMAN_REVIEW_TEMPLATE.json` only as a fail-closed reference; it MUST remain `authorized:false` until the responsible person actually approves a **private local copy**. Generate the immutable 54-run ledger and real file-byte hashes using `python stage18_v2/plan_and_run_54.py --plan-output /path/to/plan.json --source-manifest /path/to/official_local_nine_zip_manifest.json`. The reproducibility hashes include the imported native ZIP/RAR loader and original class-support inventory because these affect scientific results. Until scientific and code review, DO NOT run `--mode confirmatory`, create an approval receipt, or inspect target accuracy.
 
 Once properly authorized, each method/seed/fold invocation trains **all eight source clients** on the same 30k/device deterministic samples; only after training is finalization complete, it streams **every original heldout native record** through the locked last-round model. The run outputs a per-row `target_predictions.csv.gz`, class support receipt, training trace, fitted source-only standardization statistics, code hash and final checkpoint. No test-side filtering/deduplication/rebalancing or target-side threshold tuning is supported.
 
