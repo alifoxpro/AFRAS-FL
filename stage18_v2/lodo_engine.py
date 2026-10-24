@@ -90,14 +90,13 @@ class UniformDeviceTopK:
             raise ValueError("Sample limit must be >= 2")
         self.k = limit
         self.rng = np.random.default_rng(seed)
-        self.x = np.empty((0, N), dtype=np.float32)
+        self.x = np.empty((0, N), dtype=np.float64)
         self.labels = np.empty((0,), dtype=np.float32)
         self.keys = np.empty((0,), dtype=np.float64)
         self.class_ids = np.empty((0,), dtype=np.int8)
         self.row_ids = np.empty((0,), dtype=np.int64)
         self.total_seen = 0
         self.original_class_counts = {}
-        self.raw_selected_vectors = np.empty((0, N), dtype=np.float64)
 
     def ingest(self, data: np.ndarray, class_name: str, start_row: int):
         if data.ndim != 2 or data.shape[1] != N or not np.isfinite(data).all():
@@ -115,9 +114,7 @@ class UniformDeviceTopK:
         count = min(n, self.k)
         ix = np.argpartition(keys, count - 1)[:count]
         raw_candidates = np.asarray(data[ix], dtype=np.float64)
-        candidates = raw_candidates.astype(np.float32)
-        if not np.isfinite(candidates).all():
-            raise ValueError("Float32 conversion overflow")
+        candidates = raw_candidates  # retain native float64 until after asinh
         labels = np.full(len(ix), float(class_name != "benign"), dtype=np.float32)
         classes = np.full(len(ix), native.LABELS.index(class_name), dtype=np.int8)
         original_rows = np.asarray(start_row + ix, dtype=np.int64)
@@ -125,7 +122,6 @@ class UniformDeviceTopK:
         select_n = min(self.k, len(joint_key))
         chosen = np.argpartition(joint_key, select_n - 1)[:select_n]
         self.x = np.concatenate((self.x, candidates))[chosen].copy()
-        self.raw_selected_vectors = np.concatenate((self.raw_selected_vectors, raw_candidates))[chosen].copy()
         self.labels = np.concatenate((self.labels, labels))[chosen].copy()
         self.keys = joint_key[chosen].copy()
         self.class_ids = np.concatenate((self.class_ids, classes))[chosen].copy()
@@ -142,7 +138,6 @@ class UniformDeviceTopK:
         self.labels = self.labels[order]
         self.class_ids = self.class_ids[order]
         self.row_ids = self.row_ids[order]
-        self.raw_selected_vectors = self.raw_selected_vectors[order]
         h = hashlib.sha256()
         h.update(self.class_ids.tobytes())
         h.update(self.row_ids.tobytes())
@@ -151,7 +146,7 @@ class UniformDeviceTopK:
             cls: int((self.class_ids == native.LABELS.index(cls)).sum())
             for cls in native.LABELS
         }
-        canonical = np.asarray(self.raw_selected_vectors, dtype="<f8", order="C").copy()
+        canonical = np.asarray(self.x, dtype="<f8", order="C").copy()
         canonical[canonical == 0.0] = 0.0
         raw_digest_hex = [
             hashlib.blake2b(row.tobytes(), digest_size=16).hexdigest()
@@ -192,7 +187,10 @@ def load_source_only(root: Path, device: str, k: int, seed: int,
 
 
 def source_transform(clients: dict):
-    # Use only the eight training source arrays; no target can contribute.
+    # Apply asinh on original native float64 FIRST, then cast once to float32,
+    # exactly mirroring write_all_target_predictions() after final training.
+    if any(X.dtype != np.float64 for X,_ in clients.values()):
+        raise ValueError("Source input must retain raw float64 until asinh transform")
     xform = [np.arcsinh(X).astype(np.float32) for X,_ in clients.values()]
     matrix = np.concatenate(xform, axis=0)
     mu = matrix.mean(axis=0, dtype=np.float64).astype(np.float32)
