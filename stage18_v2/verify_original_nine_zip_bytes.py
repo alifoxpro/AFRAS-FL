@@ -37,6 +37,7 @@ def validate_original_source_manifest(source_root:Path,manifest_path:Path):
         raise ValueError("Expected nine audited device ZIP entries")
     if {x.get("device") for x in entries}!=set(DEVICES):
         raise ValueError("Nine original ZIP devices must match frozen canonical devices")
+    repackaged = m.get("record_status") == "UNAPPROVED_PUBLISHER_UCI_NATIVE_MEMBERS_REPACKAGED_NINE_SOURCE_WRAPPERS"
     seen=set()
     verified=[]
     for entry in entries:
