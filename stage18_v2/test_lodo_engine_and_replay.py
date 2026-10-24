@@ -196,6 +196,37 @@ class RawPredictionStreamAndReplay(unittest.TestCase):
         }))
         return target,pth,inventory,receipt
 
+    def test_stage13_canonical_digest_equal_for_signed_zero(self):
+        import hashlib
+        base=np.zeros((1,e.N),dtype=np.float64)
+        minus=base.copy()
+        minus[0,4]=-0.0
+        digest_a=e.raw_feature_digests(base)[0]
+        digest_b=e.raw_feature_digests(minus)[0]
+        self.assertEqual(digest_a,digest_b)
+        ref=np.ascontiguousarray(base,dtype="<f8")
+        ref[ref==0]=0.0
+        self.assertEqual(
+            digest_a,hashlib.blake2b(ref.tobytes(),digest_size=16).hexdigest()
+        )
+
+    def test_bad_vector_digest_rejected_even_when_raw_sha_updated(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base=Path(temp)
+            _,pth,inv,receipt=self.sample_run(base)
+            with gzip.open(pth,"rt",newline="") as f:
+                lines=f.readlines()
+            cols=lines[1].strip().split(",")
+            cols[-2]="not_a_valid_digest"
+            lines[1]=",".join(cols)+"\n"
+            with gzip.open(pth,"wt",newline="") as f:
+                f.writelines(lines)
+            obj=json.loads(receipt.read_text())
+            obj["target_results"]["raw_sha256"]=e.file_sha256(pth)
+            receipt.write_text(json.dumps(obj))
+            with self.assertRaisesRegex(ValueError,"Invalid canonical Stage13"):
+                r.replay_and_validate(receipt,inv,base/"reject.json")
+
     def test_native_original_row_stream_and_independent_metric_replay(self):
         with tempfile.TemporaryDirectory() as temp:
             base=Path(temp)
