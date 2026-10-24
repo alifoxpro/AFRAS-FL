@@ -1,0 +1,29 @@
+name: AFRAS V2 one-time code bridge for local native-data execution
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - .github/workflows/afras-v2-export-stage17-code.yml
+permissions:
+  contents: read
+jobs:
+  export-source-only-code:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package tracked source-only research code; never package data
+        run: |
+          set -euxo pipefail
+          mkdir -p stage17_code_export
+          tar -czf stage17_code_export/afras_v2_stage17_source_code.tar.gz \
+             stage17_v2/*.py stage17_v2/requirements-pilot.txt stage17_v2/README.md
+          sha256sum stage17_code_export/*.tar.gz \
+             > stage17_code_export/source_bundle_sha256.txt
+          ls -lah stage17_code_export
+      - uses: actions/upload-artifact@v4
+        with:
+          name: afras-v2-stage17-original-code-local-execution-bridge
+          path: stage17_code_export/*
+          retention-days: 7
