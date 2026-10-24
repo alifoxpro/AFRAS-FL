@@ -378,6 +378,8 @@ def assert_approval(gate_path: Path|None, spec_path: Path):
             ROOT/"stage18_v2"/"plan_and_run_54.py"),
         "exposure_analysis_protocol_sha256":file_sha256(
             ROOT/"stage16_v2"/"PRE_RESULT_EXPOSURE_ESTIMAND_CLARIFICATION_2026-10-24.md"),
+        "original_nine_zip_admission_scanner_sha256":file_sha256(
+            ROOT/"stage18_v2"/"verify_original_nine_zip_bytes.py"),
     }
     if (approval.get("status") != "AUTHORIZED_FOR_CONFIRMATORY_TEST"
             or approval.get("authorized") is not True
