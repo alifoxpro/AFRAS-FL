@@ -380,6 +380,10 @@ def assert_approval(gate_path: Path|None, spec_path: Path):
             ROOT/"stage16_v2"/"PRE_RESULT_EXPOSURE_ESTIMAND_CLARIFICATION_2026-10-24.md"),
         "original_nine_zip_admission_scanner_sha256":file_sha256(
             ROOT/"stage18_v2"/"verify_original_nine_zip_bytes.py"),
+        "primary_analysis_sha256":file_sha256(
+            ROOT/"stage19_v2"/"independent_device_paired_analysis.py"),
+        "sample_exposure_analysis_sha256":file_sha256(
+            ROOT/"stage19_v2"/"training_exposure_strata.py"),
     }
     if (approval.get("status") != "AUTHORIZED_FOR_CONFIRMATORY_TEST"
             or approval.get("authorized") is not True
