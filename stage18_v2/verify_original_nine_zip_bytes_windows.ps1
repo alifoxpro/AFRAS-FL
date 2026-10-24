@@ -95,7 +95,8 @@ $record = [ordered]@{
     member_decompression_performed = $false
     heldout_model_predictions_generated = $false
     human_scientific_approval_created = $false
-    executed_on_user_data = $true
+    supplied_files_byte_hashed = $true
+    user_original_zip_provenance_attested_by_scanner = $false
     files = @($results.ToArray())
     limitations = "Verifies present original ZIP bytes against prior local auditor SHA256 values; does not verify source-class truth or substitute for responsible researcher approval."
 }
