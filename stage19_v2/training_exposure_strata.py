@@ -177,6 +177,8 @@ def main():
     files={
         "primary_analysis_sha256":Path(__file__).with_name("independent_device_paired_analysis.py"),
         "sample_exposure_analysis_sha256":Path(__file__),
+        "full_source_exposure_analysis_sha256":
+            Path(__file__).with_name("full_source_vs_training_exposure.py"),
     }
     for field,source in files.items():
         if plan.get(field)!=sha(source):
