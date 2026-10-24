@@ -63,8 +63,13 @@ def create_plan(protocol:Path=engine.CORE, manifest:Path|None=None):
         "source":"FROZEN_CORE_PROTOCOL_V1_2026-10-24.json",
         "protocol_sha256":engine.file_sha256(protocol),
         "engine_sha256":engine.file_sha256(Path(engine.__file__)),
-        "independent_replay_sha256":engine.file_sha256(Path(replay.__file__)),
-        "manifest_sha256":(engine.file_sha256(manifest) if manifest else None),
+        "replay_sha256":engine.file_sha256(Path(replay.__file__)),
+        "native_loader_sha256":engine.file_sha256(Path(engine.native.__file__)),
+        "requirements_sha256":engine.file_sha256(
+            ROOT/"stage17_v2"/"requirements-pilot.txt"),
+        "native_inventory_sha256":engine.file_sha256(INVENTORY),
+        "source_manifest_sha256":(
+            engine.file_sha256(manifest) if manifest else None),
         "frozen_core_full_execution_authorized":False,
         "runs_planned":54,
         "runs_executed_by_planner":0,
