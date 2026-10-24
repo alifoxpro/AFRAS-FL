@@ -85,7 +85,7 @@ class FrozenSourceGuards(unittest.TestCase):
             self.assertNotEqual(dev,target)
             self.assertEqual(previous,header if loaded else None)
             loaded.append(dev)
-            X=rng.normal(size=(12,e.N)).astype(np.float32)
+            X=rng.normal(size=(12,e.N)).astype(np.float64)
             y=np.asarray([0]*6+[1]*6,dtype=np.float32)
             return (X,y),{
                 "native_rows":12,"sample_size":12,
@@ -137,6 +137,31 @@ class UniformSamplingAndOptimizer(unittest.TestCase):
         self.assertTrue(np.array_equal(y1,y2))
         self.assertEqual(sum(m1["sample_class_counts"].values()),20)
         self.assertEqual(m1["native_rows"],60)
+
+    def test_native_train_target_feature_transform_is_identical(self):
+        """A same native float64 vector must map to identical normalized features."""
+        raw=np.zeros((3,e.N),dtype=np.float64)
+        raw[0,0]=1.0000001
+        raw[1,0]=1.0000002
+        raw[2,0]=1e30
+        raw[:,1]=[-0.0, 3.14159265358979, 1e-18]
+        labels=np.asarray([0,1,1],dtype=np.float32)
+        transformed,mu,std=e.source_transform({"source":(raw,labels)})
+        train_x=transformed["source"][0]
+        target_x=((np.arcsinh(raw).astype(np.float32)-mu)/std).astype(np.float32)
+        np.testing.assert_array_equal(train_x,target_x)
+        self.assertEqual(train_x.dtype,np.float32)
+
+    def test_sampler_retains_float64_until_source_transform(self):
+        raw=np.zeros((4,e.N),dtype=np.float64)
+        raw[:,0]=[1.00000000001,1.00000000002,2.0,3.0]
+        sampler=e.UniformDeviceTopK(4,3107)
+        sampler.ingest(raw[:2],"benign",0)
+        sampler.ingest(raw[2:],"gafgyt_combo",0)
+        chosen,labels,receipt=sampler.finish()
+        self.assertEqual(chosen.dtype,np.float64)
+        self.assertEqual(len(set(receipt["sampled_raw_feature_digests"])),4)
+        self.assertEqual(len(labels),4)
 
     def test_adamw_fedprox_mu_zero_matches_fedavg(self):
         rng=np.random.default_rng(6)
