@@ -165,12 +165,21 @@ def main():
                   "native_inventory_sha256","orchestration_sha256",
                   "exposure_analysis_protocol_sha256",
                   "original_nine_zip_admission_scanner_sha256",
+                  "primary_analysis_sha256",
+                  "sample_exposure_analysis_sha256",
                   "source_manifest_sha256"):
         if approved.get(field)!=plan.get(field):
             raise PermissionError("Wrong authorization revision")
     if approved.get("human_review_complete") is not True or approved.get(
             "independent_data_admission_complete") is not True:
         raise PermissionError("Human review and original data admission missing")
+    files={
+        "primary_analysis_sha256":Path(__file__).with_name("independent_device_paired_analysis.py"),
+        "sample_exposure_analysis_sha256":Path(__file__),
+    }
+    for field,source in files.items():
+        if plan.get(field)!=sha(source):
+            raise PermissionError("Post-review Stage19 analytical code change: "+field)
     outcome=analyze_all(plan,a.runs_root,approved)
     outcome["analysis_sha256"]=sha(Path(__file__))
     outcome["plan_sha256"]=sha(a.plan)
