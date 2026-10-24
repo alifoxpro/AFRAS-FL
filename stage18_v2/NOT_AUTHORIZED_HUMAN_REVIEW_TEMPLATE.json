@@ -11,7 +11,7 @@
   "human_review_complete": false,
   "independent_data_admission_complete": false,
   "no_target_results_reviewed": true,
-  "note": "NOT AUTHORIZED. Before any target inference, (a) responsible human independently reviews all nine SHA-pinned code/analysis/data admission dependencies, (b) original nine ZIP bytes are rehashed on the execution machine and receipt preserved, (c) responsible human issues a private authorization. This public template remains authorized:false; no automatic approval or fake signature.",
+  "note": "NOT AUTHORIZED. Verify the exact original nine-ZIP bytes locally; inspect the FROZEN Stage16 core, Stage18 FL+replay, and ALL THREE preregistered Stage19 analysis code files including full-source-vs-trained 3-way availability. Qualified responsible researcher must issue an explicitly approved private SHA-bound receipt. AI-generated software checks, metadata-only archive listings, this template and CI are never human research approval. DO NOT COMMIT approved=true to a public repository.",
   "native_loader_sha256": null,
   "requirements_sha256": null,
   "native_inventory_sha256": null,
@@ -20,5 +20,6 @@
   "exposure_analysis_protocol_sha256": null,
   "primary_analysis_sha256": null,
   "sample_exposure_analysis_sha256": null,
-  "original_nine_zip_admission_scanner_sha256": null
+  "original_nine_zip_admission_scanner_sha256": null,
+  "full_source_exposure_analysis_sha256": null
 }
