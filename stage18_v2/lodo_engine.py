@@ -384,6 +384,8 @@ def assert_approval(gate_path: Path|None, spec_path: Path):
             ROOT/"stage19_v2"/"independent_device_paired_analysis.py"),
         "sample_exposure_analysis_sha256":file_sha256(
             ROOT/"stage19_v2"/"training_exposure_strata.py"),
+        "full_source_exposure_analysis_sha256":file_sha256(
+            ROOT/"stage19_v2"/"full_source_vs_training_exposure.py"),
     }
     if (approval.get("status") != "AUTHORIZED_FOR_CONFIRMATORY_TEST"
             or approval.get("authorized") is not True
