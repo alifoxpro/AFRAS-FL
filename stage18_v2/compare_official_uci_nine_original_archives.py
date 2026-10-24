@@ -25,11 +25,38 @@ import sys
 import os
 
 ROOT=Path(__file__).resolve().parent.parent
-sys.path.insert(0,str(ROOT/"stage17_v2"))
-from prepare_uci_public_sources import (
-    desired_members,find_unique_members,sha256_file
+# Keep byte admission stdlib-only: importing the FL native loader would
+# unnecessarily require torch/pandas/numpy and obscure byte provenance.
+DEVICES=(
+    "Ennio_Doorbell","Samsung_SNH_1011_N_Webcam",
+    "Provision_PT_838_Security_Camera","Ecobee_Thermostat",
+    "Provision_PT_737E_Security_Camera","Danmini_Doorbell",
+    "Philips_B120N10_Baby_Monitor",
+    "SimpleHome_XCS7_1003_WHT_Security_Camera",
+    "SimpleHome_XCS7_1002_WHT_Security_Camera",
 )
-from source_only_pilot import DEVICES
+def sha256_file(path:Path):
+    h=hashlib.sha256()
+    with path.open("rb") as fd:
+        for chunk in iter(lambda: fd.read(1<<20),b""):
+            h.update(chunk)
+    return h.hexdigest()
+def desired_members(device):
+    expected=[f"{device}/benign_traffic.csv",
+              f"{device}/gafgyt_attacks.rar"]
+    if device not in DEVICES[:2]:
+        expected.append(f"{device}/mirai_attacks.rar")
+    return expected
+def find_unique_members(outer:zipfile.ZipFile, devices):
+    names=[x.filename for x in outer.infolist() if not x.is_dir()]
+    found={}
+    for device in devices:
+        for expected in desired_members(device):
+            candidates=[x for x in names if x==expected or x.endswith("/"+expected)]
+            if len(candidates)!=1:
+                raise ValueError("Official source member missing/ambiguous: "+expected)
+            found[expected]=candidates[0]
+    return found
 
 PREVIOUS_OBSERVED_OUTER_SHA="64929678b081d8e579a8d7c488cf11cc588403f282d5fb065b4156edbd55de9b"
 
