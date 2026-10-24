@@ -41,10 +41,33 @@ jobs:
             stage18_chat18/uci_original_native_member_comparison_receipt.json
           cp "$RUNNER_TEMP/afras_chat18_reconstructed/PUBLISHER_UCI_NINE_REPACKAGED_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json" \
             stage18_chat18/PUBLISHER_UCI_NINE_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json
-          python stage18_v2/verify_original_nine_zip_bytes.py \
-            --source-root "$RUNNER_TEMP/afras_chat18_reconstructed/rebuilt_official_device_archives" \
-            --manifest stage18_chat18/PUBLISHER_UCI_NINE_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json \
-            --receipt stage18_chat18/PUBLISHER_UCI_NINE_REPACKAGED_BYTES_CHECK__NOT_AUTHORIZED.json
+          # Verify candidate-wrapper bytes separately: these are NOT the
+          # researcher's nine original Library ZIP wrappers.
+          python - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          manifest=Path("stage18_chat18/PUBLISHER_UCI_NINE_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json")
+          m=json.loads(manifest.read_text())
+          root=Path(os.environ["RUNNER_TEMP"])/"afras_chat18_reconstructed/rebuilt_official_device_archives"
+          evidence=[]
+          for entry in m["local_archives"]:
+              path=root/entry["filename"]
+              digest=hashlib.sha256(path.read_bytes()).hexdigest()
+              assert digest==entry["local_sha256"] and path.stat().st_size==entry["local_bytes"]
+              evidence.append({"device":entry["device"],"repacked_zip_sha256":digest})
+          assert len(evidence)==9
+          data={
+            "status":"NINE_OFFICIAL_UCI_REPACKAGED_WRAPPER_HASHES_MATCH_UNAPPROVED_CANDIDATE",
+            "candidate_source_manifest_sha256":hashlib.sha256(manifest.read_bytes()).hexdigest(),
+            "native_member_origin":"PUBLISHED_UCI_TRANSPORT_25_ORIGINAL_MEMBERS",
+            "current_user_library_zip_bytes_hashed":False,
+            "reconstructed_candidate_zips_verified":9,
+            "scientific_human_review_present":False,
+            "confirmatory_target_predictions_scored":0,
+            "files":evidence}
+          Path("stage18_chat18/PUBLISHER_UCI_NINE_REPACKAGED_BYTES_CHECK__NOT_AUTHORIZED.json").write_text(json.dumps(data,indent=2)+"\n")
+          print("CHAT19_PUBLISHER_REPACKAGED_CANDIDATE_NINE_BYTE_HASHES_PASS_NOT_USER_LIBRARY",flush=True)
+          PY
       - name: Cross-match 23 historical original user-local member SHA values against new official UCI bytes
         run: |
           python - <<'PY'
@@ -96,8 +119,10 @@ jobs:
           assert mdig==r['provisional_unapproved_publisher_repacked_manifest_sha256']
           assert len(m["local_archives"])==9 and m["human_authorization_granted"] is False
           assert m["record_status"]=="UNAPPROVED_PUBLISHER_UCI_NATIVE_MEMBERS_REPACKAGED_NINE_SOURCE_WRAPPERS"
-          assert check["original_zips_verified"]==9 and check["human_scientific_approval_created"] is False
-          assert check["original_source_manifest_sha256"]==mdig
+          assert check["reconstructed_candidate_zips_verified"]==9
+          assert check["current_user_library_zip_bytes_hashed"] is False
+          assert check["scientific_human_review_present"] is False
+          assert check["candidate_source_manifest_sha256"]==mdig
           assert r['current_user_Library_zip_bytes_read'] is False
           assert r['full_nine_local_zip_admission_of_user_library_bytes'] is False
           assert r['actual_native_test_rows_scored']==0
