@@ -1,0 +1,35 @@
+name: AFRAS V2 Chat14 preregistered nine-device Stage19 analysis QA
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - stage19_v2/**
+      - .github/workflows/afras-v2-chat14-device-inference-ci.yml
+permissions:
+  contents: read
+jobs:
+  scientific-device-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile standard-library independent analysis
+        run: python -m compileall -q stage19_v2
+      - name: Validate nine-device/54-task exact statistical analysis on synthetic data
+        run: |
+          python -m unittest discover -s stage19_v2 -p 'test_*.py' -v
+      - name: Audit no native heldout evaluation and no real-target claims
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          code=Path("stage19_v2/independent_device_paired_analysis.py").read_text()
+          assert "NINE_HELDOUT_DEVICES__NOT_ROWS_OR_SEEDS" in code
+          assert "All 54 independently verified runs are mandatory" in code
+          assert "AUTHORIZED_FOR_CONFIRMATORY_TEST" in code
+          assert not Path("stage19_v2/actual_native_results.json").exists()
+          print("CHAT14_DEVICE_INFERENCE_SYNTHETIC_QA_ONLY__NO_REAL_HELDOUT_RESULTS",flush=True)
+          PY
