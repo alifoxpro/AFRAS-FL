@@ -70,6 +70,10 @@ class FrozenPlanTests(unittest.TestCase):
                 "no_target_results_reviewed":True,
                 "original_nine_zip_admission_scanner_sha256":engine.file_sha256(
                     engine.ROOT/"stage18_v2"/"verify_original_nine_zip_bytes.py"),
+                "primary_analysis_sha256":engine.file_sha256(
+                    engine.ROOT/"stage19_v2"/"independent_device_paired_analysis.py"),
+                "sample_exposure_analysis_sha256":engine.file_sha256(
+                    engine.ROOT/"stage19_v2"/"training_exposure_strata.py"),
                 "source_manifest_sha256":"0"*64,
             }),encoding="utf8")
             args=argparse.Namespace(
@@ -104,6 +108,37 @@ class FrozenPlanTests(unittest.TestCase):
             receipt.write_text(json.dumps(fields))
             with self.assertRaises(PermissionError):
                 engine.assert_approval(receipt,engine.CORE)
+
+    def test_both_stage19_analysis_files_are_sha_bound_before_heldout_test(self):
+        """Never treat an AI-generated fixture approval as human authorization."""
+        import copy
+        p=plan.create_plan()
+        for field in ("primary_analysis_sha256","sample_exposure_analysis_sha256"):
+            self.assertEqual(len(p[field]),64)
+        with tempfile.TemporaryDirectory() as tmp:
+            gate=Path(tmp)/"TEST_FIXTURE_NOT_A_REAL_APPROVAL.json"
+            fake={
+                "status":"AUTHORIZED_FOR_CONFIRMATORY_TEST",
+                "authorized":True,
+                "approved_by":"UNIT_TEST_ONLY_NOT_A_REAL_REVIEWER",
+                "human_review_complete":True,
+                "independent_data_admission_complete":True,
+                "no_target_results_reviewed":True,
+            }
+            for k,v in p.items():
+                if k.endswith("_sha256") and isinstance(v,str):
+                    fake[k]=v
+            gate.write_text(json.dumps(fake))
+            # Synthetically complete checksums verify internal gate wiring only.
+            receipt,hashes=engine.assert_approval(gate,engine.CORE)
+            self.assertEqual(receipt["approved_by"],"UNIT_TEST_ONLY_NOT_A_REAL_REVIEWER")
+            for field in ("primary_analysis_sha256","sample_exposure_analysis_sha256"):
+                bad=copy.deepcopy(fake)
+                bad[field]="0"*64
+                gate.write_text(json.dumps(bad))
+                with self.assertRaisesRegex(PermissionError,"Approval absent"):
+                    engine.assert_approval(gate,engine.CORE)
+            # No source root, no user dataset, no actual target prediction.
 
     def test_prior_revision_cannot_be_resumed_as_current_confirmatory_evidence(self):
         task=plan.locked_tasks()[0]
