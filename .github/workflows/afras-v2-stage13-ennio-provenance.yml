@@ -1,0 +1,37 @@
+name: AFRAS V2 Stage13 one-time UCI Ennio provenance closure
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - .github/workflows/afras-v2-stage13-ennio-provenance.yml
+permissions:
+  contents: read
+jobs:
+  ennio-public-source-byte-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download official public original UCI bytes
+        run: |
+          set -euxo pipefail
+          curl --fail --location --retry 3 --retry-delay 10 \
+            --speed-time 90 --speed-limit 1024 --max-time 1500 \
+            --output "$RUNNER_TEMP/uci_n_baiot_original.zip" \
+            'https://archive.ics.uci.edu/static/public/442/detection+of+iot+botnet+attacks+n+baiot.zip'
+      - name: Verify only Ennio CSV and RAR source content identities
+        run: |
+          set -euxo pipefail
+          mkdir -p stage13_ennio_receipt
+          python3 stage13_v2/check_official_ennio_content.py \
+            --original-uci-archive "$RUNNER_TEMP/uci_n_baiot_original.zip" \
+            --output stage13_ennio_receipt/ennio_official_member_byte_equality.json
+      - name: Store digest-only publication provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: afras-v2-stage13-ennio-public-byte-closure
+          path: stage13_ennio_receipt/*.json
+          retention-days: 10
+          if-no-files-found: warn
