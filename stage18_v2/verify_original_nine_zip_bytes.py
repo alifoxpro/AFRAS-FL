@@ -67,7 +67,8 @@ def validate_original_source_manifest(source_root:Path,manifest_path:Path):
         })
         print("ORIGINAL_ZIP_BYTES_MATCH",dev,size,flush=True)
     return {
-        "status":"ALL_NINE_ORIGINAL_ZIP_BYTES_MATCH_AUDITED_MANIFEST",
+        "status":("ALL_NINE_PUBLISHER_REPACKAGED_CANDIDATE_ZIP_BYTES_MATCH_MANIFEST" if repackaged else "ALL_NINE_ORIGINAL_ZIP_BYTES_MATCH_AUDITED_MANIFEST"),
+        "origin":"PUBLISHER_UCI_REPACKAGED_NOT_USER_LIBRARY" if repackaged else "PREVIOUSLY_AUDITED_USER_LOCAL_ZIPS",
         "original_zips_verified":len(verified),
         "original_zips_total_size":sum(x["bytes"] for x in verified),
         "original_source_manifest_sha256":sha256_file(manifest_path),
