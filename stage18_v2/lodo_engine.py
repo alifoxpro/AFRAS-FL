@@ -186,6 +186,88 @@ def load_source_only(root: Path, device: str, k: int, seed: int,
     return (x,y), receipt, ordered_header
 
 
+def load_source_with_verified_cache(root: Path, device: str, k: int, seed: int,
+                                    ordered_header: list[str] | None,
+                                    cache_root: Path, source_zip_sha256: str|None):
+    """Source-only immutable per-device/seed/k native-float64 sample cache.
+
+    The held-out target cannot be read here unless the caller explicitly
+    supplies it; run() supplies only fold_sources(target). Each cache entry is
+    bound to the byte-identical original source ZIP, native loader code,
+    engine code, selected sample, and original header. Cached *raw float64*
+    vectors are transformed on eight-source union separately for each fold.
+    """
+    if device not in native.DEVICES or k<2 or seed<0:
+        raise ValueError("Invalid original source device sampling cache key")
+    cache_root.mkdir(parents=True,exist_ok=True)
+    digest=source_zip_sha256 or file_sha256(root/(device+".zip"))
+    loader_hash=file_sha256(Path(native.__file__))
+    engine_hash=file_sha256(Path(__file__))
+    basename=f"{device}__seed{seed}__k{k}__float64_v1"
+    array_path=cache_root/(basename+".npz")
+    receipt_path=cache_root/(basename+".receipt.json")
+    if array_path.exists() or receipt_path.exists():
+        if not (array_path.is_file() and receipt_path.is_file()):
+            raise ValueError("Partial sample cache: require manual integrity review")
+        meta=json.loads(receipt_path.read_text(encoding="utf8"))
+        if not (meta.get("cache_schema")=="RAW_FLOAT64_UNIFORM_SAMPLE_V1"
+                and meta.get("device")==device
+                and meta.get("seed")==seed and meta.get("cap")==k
+                and meta.get("source_zip_sha256")==digest
+                and meta.get("native_loader_sha256")==loader_hash
+                and meta.get("sampler_engine_sha256")==engine_hash
+                and meta.get("compressed_sample_sha256")==file_sha256(array_path)):
+            raise ValueError("Stale or tampered original-source cache")
+        with np.load(array_path,allow_pickle=False) as bank:
+            X=bank["source_raw_float64"]
+            y=bank["source_binary_label"]
+            header=list(bank["original_feature_header"])
+            record=json.loads(str(bank["source_sample_receipt_json"].item()))
+        if (X.dtype!=np.float64 or y.dtype!=np.float32
+                or X.shape!=(k,N) or y.shape!=(k,)
+                or not np.isfinite(X).all()
+                or not set(np.unique(y))=={0.,1.}
+                or len(header)!=N
+                or (ordered_header is not None and ordered_header!=header)
+                or record.get("sample_size")!=k
+                or record.get("sampled_raw_feature_digests")!=raw_feature_digests(X)):
+            raise ValueError("Cached source samples differ from native float64 receipt")
+        record["sample_cache_status"]="VERIFIED_HIT"
+        return (X,y),record,header
+    pair,record,header=load_source_only(root,device,k,seed,ordered_header)
+    X,y=pair
+    if X.dtype!=np.float64 or len(record["sampled_raw_feature_digests"])!=k:
+        raise ValueError("Source sample cache requires native float64 and exact raw digests")
+    from tempfile import NamedTemporaryFile
+    with NamedTemporaryFile(prefix=basename+".",suffix=".npz",
+                            dir=cache_root,delete=False) as handle:
+        temporary=Path(handle.name)
+        np.savez_compressed(handle,source_raw_float64=X,source_binary_label=y,
+            original_feature_header=np.asarray(header,dtype=np.str_),
+            source_sample_receipt_json=np.asarray(json.dumps(record)))
+    try:
+        compressed_digest=file_sha256(temporary)
+        metadata={
+            "cache_schema":"RAW_FLOAT64_UNIFORM_SAMPLE_V1",
+            "device":device,"seed":seed,"cap":k,
+            "source_zip_sha256":digest,
+            "native_loader_sha256":loader_hash,
+            "sampler_engine_sha256":engine_hash,
+            "compressed_sample_sha256":compressed_digest,
+            "sample_row_ids_sha256":record["sample_row_ids_sha256"],
+        }
+        # Never silently overwrite a verified source sample or its metadata.
+        if array_path.exists() or receipt_path.exists():
+            raise FileExistsError("Concurrent cache writer or already-filled cache")
+        temporary.replace(array_path)
+        with receipt_path.open("x",encoding="utf8") as out:
+            json.dump(metadata,out,indent=2)
+    finally:
+        temporary.unlink(missing_ok=True)
+    record["sample_cache_status"]="NEW_SOURCE_CACHE"
+    return pair,record,header
+
+
 def source_transform(clients: dict):
     # Apply asinh on original native float64 FIRST, then cast once to float32,
     # exactly mirroring write_all_target_predictions() after final training.
@@ -413,8 +495,14 @@ def run(args):
     native_receipts={}
     sampled_digest_sets={}
     for source in sources:
-        pair,rec,header=load_source_only(
-            args.source_root,source,sample_k,seed,header)
+        cache_root=getattr(args,"source_cache_root",None)
+        if cache_root is None:
+            pair,rec,header=load_source_only(
+                args.source_root,source,sample_k,seed,header)
+        else:
+            pair,rec,header=load_source_with_verified_cache(
+                args.source_root,source,sample_k,seed,header,
+                cache_root,source_hashes.get(source))
         clients[source]=pair
         sampled = rec.pop("sampled_raw_feature_digests", None)
         if sampled is not None:
@@ -527,6 +615,7 @@ def main():
     a.add_argument("--seed",type=int,default=3107)
     a.add_argument("--approval-gate",type=Path,default=None)
     a.add_argument("--source-manifest",type=Path,default=None)
+    a.add_argument("--source-cache-root",type=Path,default=None)
     a.add_argument("--preflight-cap",type=int,default=0)
     a.add_argument("--preflight-rounds",type=int,default=0)
     a.add_argument("--preflight-epochs",type=int,default=0)
