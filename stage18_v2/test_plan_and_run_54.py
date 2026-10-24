@@ -74,6 +74,8 @@ class FrozenPlanTests(unittest.TestCase):
                     engine.ROOT/"stage19_v2"/"independent_device_paired_analysis.py"),
                 "sample_exposure_analysis_sha256":engine.file_sha256(
                     engine.ROOT/"stage19_v2"/"training_exposure_strata.py"),
+                "full_source_exposure_analysis_sha256":engine.file_sha256(
+                    engine.ROOT/"stage19_v2"/"full_source_vs_training_exposure.py"),
                 "source_manifest_sha256":"0"*64,
             }),encoding="utf8")
             args=argparse.Namespace(
@@ -113,7 +115,8 @@ class FrozenPlanTests(unittest.TestCase):
         """Never treat an AI-generated fixture approval as human authorization."""
         import copy
         p=plan.create_plan()
-        for field in ("primary_analysis_sha256","sample_exposure_analysis_sha256"):
+        for field in ("primary_analysis_sha256","sample_exposure_analysis_sha256",
+                      "full_source_exposure_analysis_sha256"):
             self.assertEqual(len(p[field]),64)
         with tempfile.TemporaryDirectory() as tmp:
             gate=Path(tmp)/"TEST_FIXTURE_NOT_A_REAL_APPROVAL.json"
@@ -132,7 +135,8 @@ class FrozenPlanTests(unittest.TestCase):
             # Synthetically complete checksums verify internal gate wiring only.
             receipt,hashes=engine.assert_approval(gate,engine.CORE)
             self.assertEqual(receipt["approved_by"],"UNIT_TEST_ONLY_NOT_A_REAL_REVIEWER")
-            for field in ("primary_analysis_sha256","sample_exposure_analysis_sha256"):
+            for field in ("primary_analysis_sha256","sample_exposure_analysis_sha256",
+                      "full_source_exposure_analysis_sha256"):
                 bad=copy.deepcopy(fake)
                 bad[field]="0"*64
                 gate.write_text(json.dumps(bad))
