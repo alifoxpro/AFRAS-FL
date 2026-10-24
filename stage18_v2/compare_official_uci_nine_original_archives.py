@@ -148,6 +148,32 @@ def do_compare(official_outer:Path,expected_manifest:Path,output_root:Path):
         "caution":"Public publisher transport/inner members were independently downloaded and checked; current user's original nine Library ZIP bytes were NOT available to this GitHub workflow. Packaging SHA differences are not necessarily member-content differences.",
         "reconstructed_device_reports":reports
     }
+    # Candidate provenance route ONLY: the 25 native published member bytes
+    # are preserved, but the nine new ZIP wrappers DO NOT match the research
+    # user's historic archive wrappers. Therefore the owner must explicitly
+    # review and approve this ALTERNATIVE source manifest, or choose original
+    # nine-user-archive admission instead; never quietly substitute it.
+    candidate={
+        "manifest_schema":"AFRAS_V2_ORIGINAL_NINE_DEVICE_ZIP_EXPECTED_BYTES_V1",
+        "record_status":"UNAPPROVED_PUBLISHER_UCI_NATIVE_MEMBERS_REPACKAGED_NINE_SOURCE_WRAPPERS",
+        "source":"UCI N-BaIoT DOI:10.24432/C5RC8J",
+        "official_download_sha256":outer_sha,
+        "original_native_member_sha256_count":25,
+        "historical_original_user_library_zip_wrappers_reproduced":False,
+        "human_authorization_granted":False,
+        "local_archives":[{
+            "device":r["device"],
+            "filename":r["device"]+".zip",
+            "local_sha256":r["reconstructed_official_zip_sha256"],
+            "local_bytes":r["reconstructed_official_zip_bytes"],
+        } for r in reports],
+        "eligibility":"REQUIRES_RESPONSIBLE_HUMAN_PROVENANCE_REVIEW_BEFORE_ANY_54_TARGET_RUNS",
+        "warning":"Different outer ZIP SHA from prior user originals. The 25 canonical CSV/RAR members came from the same SHA-checked public UCI transport; file wrappers are newly constructed. This is an alternative candidate dataset route, not a fresh hash of the user Library's nine ZIPs.",
+    }
+    candidate_path=output_root/"PUBLISHER_UCI_NINE_REPACKAGED_ZIPS_CANDIDATE_MANIFEST__NOT_AUTHORIZED.json"
+    candidate_path.write_text(json.dumps(candidate,indent=2)+"\n",encoding="utf8")
+    out["provisional_unapproved_publisher_repacked_manifest_sha256"]=sha256_file(candidate_path)
+    out["provisional_manifest_needs_human_review"]=True
     receipt=output_root/"uci_original_native_member_comparison_receipt.json"
     receipt.write_text(json.dumps(out,indent=2),encoding="utf8")
     print("OFFICIAL_UCI_25_NATIVE_MEMBERS_CHECKED",
