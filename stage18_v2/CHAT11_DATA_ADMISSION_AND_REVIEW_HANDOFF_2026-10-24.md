@@ -13,6 +13,19 @@
 4. Stage18 QA at [run 40082663948](https://github.com/alifoxpro/AFRAS-FL/actions/runs/40082663948) PASS, current source-only test and hard authorization checks. Earlier real public-original UCI source-only experiment [40081405252](https://github.com/alifoxpro/AFRAS-FL/actions/runs/40081405252) PASS: FedAvg float64 cold/warm cache exact training-loss parity plus FedProx, each 5×3 with eight sources, target Ennio unstaged.
 5. GitHub Draft PR #1 remains open with **zero submitted reviewer records**. The `NOT_AUTHORIZED_HUMAN_REVIEW_TEMPLATE.json` is `authorized:false`. No actual 9×2×3 confirmatory test inference is complete (0/54).
 
+## Practical original nine-ZIP byte-verification command
+
+A standalone standard-library scanner is now committed as `stage18_v2/verify_original_nine_zip_bytes.py`. It reads **outer ZIP bytes only**, checks canonical device names, exact original byte sizes and SHA-256 against the nine-record manifest, fails closed if even one ZIP is missing/modified and writes an evidence JSON only if all nine match. It does **not** inspect attack labels or generate test predictions, and it does **not** issue scientific approval.
+
+```bash
+python stage18_v2/verify_original_nine_zip_bytes.py \
+  --source-root /secure/path/to/original/nine_zip_files \
+  --manifest stage18_v2/ORIGINAL_NINE_LOCAL_ZIP_HASH_MANIFEST_2026-10-24.json \
+  --receipt /secure/research_evidence/nine_original_zip_byte_admission.json
+```
+
+[GitHub Actions run 40082895532](https://github.com/alifoxpro/AFRAS-FL/actions/runs/40082895532) passed **29/29 Stage18 Python checks**, including four new original-byte-admission fixture tests (all-nine match, missing file, modified file and wrong device name). These are software tests, **not yet all-nine real original ZIP byte re-hashing in the confirmatory execution environment**.
+
 ## What the responsible researcher must actually review
 
 - **Current exact code**: `stage18_v2/lodo_engine.py`, `replay_predictions.py`, `plan_and_run_54.py`, imported `stage17_v2/source_only_pilot.py`, Stage16 frozen core, Stage16 exposure amendment, requirements and class-support inventory.
