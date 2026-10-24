@@ -141,6 +141,55 @@ def replay_one(prediction_path:Path,target:str,expected:dict):
     }
 
 
+def verify_actual_training_exposure_bank(receipt_path:Path, receipt:dict):
+    """Guard true *sampled source* exposure against conflation with full corpus.
+
+    This never opens any native training or target archive, only the immutable
+    digest-only sidecar written from the sampled source examples during fitting.
+    """
+    bank=receipt.get("actual_training_feature_exposure")
+    sources=receipt.get("training_devices")
+    sample=receipt.get("sampling")
+    if (not isinstance(bank,dict) or not isinstance(sources,list)
+            or len(sources)!=8 or len(set(sources))!=8
+            or not isinstance(sample,dict) or set(sample)!=set(sources)
+            or bank.get("filename")!="actually_trained_source_feature_digests.csv.gz"
+            or bank.get("status")!="ACTUAL_SELECTED_TRAINING_ROWS_ONLY_NOT_FULL_SOURCE_CORPUS"):
+        raise ValueError("Missing exact sampled-training exposure sidecar")
+    expected={}
+    for source in sources:
+        n=sample[source].get("sample_size")
+        if n!=30000:
+            raise ValueError("Full confirmatory protocol requires 30,000 rows/client")
+        expected[source]=n
+    if bank.get("num_rows")!=sum(expected.values()):
+        raise ValueError("Sampled training digest count not 240000")
+    path=receipt_path.parent/bank["filename"]
+    if not path.is_file() or sha(path)!=bank.get("sha256"):
+        raise ValueError("Training sample digest bank is missing or corrupted")
+    counts={source:0 for source in sources}
+    with gzip.open(path,"rt",encoding="utf8",newline="") as f:
+        rd=csv.DictReader(f)
+        if tuple(rd.fieldnames or ())!=(
+                "training_source_device","raw_float64_feature_digest"):
+            raise ValueError("Sampled training digest bank header mismatch")
+        for record in rd:
+            dev=record["training_source_device"]
+            digest=record["raw_float64_feature_digest"]
+            if dev not in expected or len(digest)!=32 or any(
+                    ch not in "0123456789abcdef" for ch in digest):
+                raise ValueError("Invalid sampled training digest row")
+            counts[dev]+=1
+            if counts[dev]>expected[dev]:
+                raise ValueError("Too many sampled source fingerprint rows")
+    if counts!=expected:
+        raise ValueError("Sampled training fingerprint bank incomplete")
+    return {"source_sample_digest_sha256":bank["sha256"],
+            "actual_training_source_rows":sum(counts.values()),
+            "actual_training_sources":list(sources),
+            "scope":"ACTUAL_SAMPLED_ROWS__DISTINCT_FROM_STAGE13_FULL_SOURCE_CENSUS"}
+
+
 def replay_and_validate(receipt_path:Path, inventory:Path, output:Path):
     r=json.loads(receipt_path.read_text(encoding="utf8"))
     if not (r.get("mode")=="confirmatory"
@@ -162,6 +211,7 @@ def replay_and_validate(receipt_path:Path, inventory:Path, output:Path):
     if (t["rows"]!=sum(expected.values())
             or t["native_class_support"]!=expected):
         raise ValueError("Final target support diverges from original inventory")
+    actual_training_exposure=verify_actual_training_exposure_bank(receipt_path,r)
     metrics=replay_one(path,r["heldout_device"],expected)
     results={
         "status":"INDEPENDENT_FULL_NATIVE_TARGET_PREDICTION_REPLAY",
@@ -174,6 +224,7 @@ def replay_and_validate(receipt_path:Path, inventory:Path, output:Path):
         "prediction_file_sha256":t["raw_sha256"],
         "native_inventory_sha256":sha(inventory),
         "metrics":metrics,
+        "actual_training_exposure_integrity":actual_training_exposure,
     }
     if output.exists():
         raise FileExistsError("Refusing to replace independent replay evidence")
