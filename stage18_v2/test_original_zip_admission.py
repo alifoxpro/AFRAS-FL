@@ -38,6 +38,20 @@ class OriginalNineZipByteAdmissionTests(unittest.TestCase):
             self.assertEqual(output["heldout_model_predictions_generated"],False)
             self.assertEqual(output["member_decompression_performed"],False)
 
+    def test_repackaged_public_source_bytes_are_not_mislabeled_local_original(self):
+        with tempfile.TemporaryDirectory() as d:
+            sources,manifest=self.make_sources(Path(d))
+            data=json.loads(manifest.read_text())
+            data["record_status"]="UNAPPROVED_PUBLISHER_UCI_NATIVE_MEMBERS_REPACKAGED_NINE_SOURCE_WRAPPERS"
+            data["human_authorization_granted"]=False
+            manifest.write_text(json.dumps(data))
+            result=verify.validate_original_source_manifest(sources,manifest)
+            self.assertEqual(result["original_zips_verified"],9)
+            self.assertEqual(result["origin"],"PUBLISHER_UCI_REPACKAGED_NOT_USER_LIBRARY")
+            self.assertIn("PUBLISHER_REPACKAGED",result["status"])
+            self.assertIn("REPACKAGED",result["files"][0]["status"])
+            self.assertIs(result["human_scientific_approval_created"],False)
+
     def test_one_modified_original_zip_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             sources,manifest=self.make_sources(Path(d))
