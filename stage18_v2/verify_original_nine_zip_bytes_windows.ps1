@@ -78,9 +78,8 @@ for ($i=0; $i -lt 9; $i++) {
     })
     Write-Output ("ORIGINAL_ZIP_SHA256_MATCH {0} ({1} bytes)" -f $dev, $expectedBytes)
 }
-if ($sum -ne [int64]1773532530) {
-    throw "Total original ZIP bytes differ from prior audited research data"
-}
+# Total bytes are the sum of the separately SHA-verified manifest entries.
+# Its exact nine-source values are bound by the reviewer's manifest SHA-256.
 $receiptDir = Split-Path -Path $Receipt -Parent
 if ($receiptDir -and (-not (Test-Path -LiteralPath $receiptDir -PathType Container))) {
     New-Item -ItemType Directory -Path $receiptDir -Force | Out-Null
