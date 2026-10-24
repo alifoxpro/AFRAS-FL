@@ -305,6 +305,8 @@ def main():
         "primary_analysis_sha256":Path(__file__),
         "sample_exposure_analysis_sha256":
             Path(__file__).with_name("training_exposure_strata.py"),
+        "full_source_exposure_analysis_sha256":
+            Path(__file__).with_name("full_source_vs_training_exposure.py"),
     }
     for key,source in analysis_sources.items():
         if plan.get(key)!=sha(source):
