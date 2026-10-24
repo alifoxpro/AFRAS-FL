@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/afras-v2-chat18-official-nine-member-byte-admission.yml
       - stage18_v2/compare_official_uci_nine_original_archives.py
+      - stage18_v2/HISTORICAL_LOCAL_ORIGINAL_23_MEMBER_SHA256_CHAT6.json
 permissions:
   contents: read
 jobs:
@@ -38,6 +39,39 @@ jobs:
             --output-root "$RUNNER_TEMP/afras_chat18_reconstructed"
           cp "$RUNNER_TEMP/afras_chat18_reconstructed/uci_original_native_member_comparison_receipt.json" \
             stage18_chat18/uci_original_native_member_comparison_receipt.json
+      - name: Cross-match 23 historical original user-local member SHA values against new official UCI bytes
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          prior=json.loads(Path("stage18_v2/HISTORICAL_LOCAL_ORIGINAL_23_MEMBER_SHA256_CHAT6.json").read_text())
+          current=json.loads(Path("stage18_chat18/uci_original_native_member_comparison_receipt.json").read_text())
+          current_members={m["name"]:m for dev in current["reconstructed_device_reports"]
+                           for m in dev["native_members_from_official_transport"]}
+          expected=prior["entries"]
+          assert len(expected)==23 and len(current_members)==25
+          confirmed=[]
+          for entry in expected:
+              x=current_members[entry["native_member"]]
+              assert x["source_member_sha256"]==entry["prior_local_original_member_sha256"],entry["native_member"]
+              assert x["source_member_bytes"]==entry["member_size_bytes"],entry["native_member"]
+              confirmed.append(entry["native_member"])
+          assert len(set(confirmed))==23
+          # Ennio originals not in Chat6's 23-member user-local comparison.
+          missing=sorted(set(current_members)-set(confirmed))
+          assert missing==["Ennio_Doorbell/benign_traffic.csv","Ennio_Doorbell/gafgyt_attacks.rar"]
+          current["historical_local_member_equality"]={
+              "status":"23_OF_23_HISTORICAL_CHAT6_LOCAL_MEMBERS_MATCH_CURRENT_OFFICIAL_UCI_DOWNLOAD",
+              "members_checked":23,"matches":23,
+              "not_locally_comparable_Ennio_members":missing,
+              "all_25_present_in_official_source":True,
+              "fresh_user_library_original_zip_sha_completed":False
+          }
+          Path("stage18_chat18/uci_original_native_member_comparison_receipt.json").write_text(
+              json.dumps(current,indent=2)+"\n")
+          print("CHAT18_PRIOR_LOCAL_23_OF_23_NATIVE_MEMBER_SHA256_VS_FRESH_OFFICIAL_UCI_PASS",
+                "Ennio_original_local_members_not_independently_compared",len(missing),flush=True)
+          PY
       - name: Explicit checks (25 original public members, zero target result or fake approval)
         run: |
           python - <<'PY'
