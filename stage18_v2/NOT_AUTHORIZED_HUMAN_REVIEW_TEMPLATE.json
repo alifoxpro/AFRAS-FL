@@ -11,9 +11,11 @@
   "human_review_complete": false,
   "independent_data_admission_complete": false,
   "no_target_results_reviewed": true,
-  "note": "INTENTIONALLY NOT AUTHORIZED. Responsible researcher must audit and explicitly approve the exact protocol, engine, replay, imported native loader, pinned requirements, analysis-only native class inventory, and nine original local ZIP manifest. Issue completed approval privately; never commit authorized=true to public GitHub.",
+  "note": "NOT AUTHORIZED. Review and checksum the exact frozen protocol, engine, independent replay, native loader/aggregator, dependency requirements, native class inventory, 54-task orchestration, pre-result exposure estimand addendum, and original ZIP manifest. Human responsible researcher signs a private receipt only after gate approval; never commit authorized=true to public GitHub.",
   "native_loader_sha256": null,
   "requirements_sha256": null,
   "native_inventory_sha256": null,
-  "all_required_code_dependency_hashes_reviewed": false
+  "all_required_code_dependency_hashes_reviewed": false,
+  "orchestration_sha256": null,
+  "exposure_analysis_protocol_sha256": null
 }
