@@ -1,0 +1,15 @@
+{
+  "status": "NOT_AUTHORIZED_REVIEW_TEMPLATE",
+  "authorized": false,
+  "approved_by": null,
+  "review_date": null,
+  "scientific_approval_scope": "Full original nine N-BaIoT local ZIP dataset, frozen 9x2x3 source-only-fit/target-eval LODO",
+  "protocol_sha256": null,
+  "engine_sha256": null,
+  "replay_sha256": null,
+  "source_manifest_sha256": null,
+  "human_review_complete": false,
+  "independent_data_admission_complete": false,
+  "no_target_results_reviewed": true,
+  "note": "THIS FILE IS INTENTIONALLY NOT AUTHORIZING ANY TEST. Responsible human review must be completed first. Copy off-repository, fill exact SHA256 values from the immutable 54-run plan and dataset manifest, and issue approval explicitly. NEVER COMMIT AN AUTHORIZED RECEIPT TO A PUBLIC REPOSITORY."
+}
