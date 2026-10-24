@@ -295,6 +295,7 @@ def main():
               "original_nine_zip_admission_scanner_sha256",
               "primary_analysis_sha256",
               "sample_exposure_analysis_sha256",
+              "full_source_exposure_analysis_sha256",
               "source_manifest_sha256"):
         if approval.get(k)!=plan.get(k):
             raise PermissionError("Approval and 54-run plan revision differ on "+k)
