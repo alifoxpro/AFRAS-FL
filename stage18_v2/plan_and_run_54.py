@@ -80,6 +80,8 @@ def create_plan(protocol:Path=engine.CORE, manifest:Path|None=None):
             ROOT/"stage19_v2"/"independent_device_paired_analysis.py"),
         "sample_exposure_analysis_sha256":engine.file_sha256(
             ROOT/"stage19_v2"/"training_exposure_strata.py"),
+        "full_source_exposure_analysis_sha256":engine.file_sha256(
+            ROOT/"stage19_v2"/"full_source_vs_training_exposure.py"),
         "frozen_core_full_execution_authorized":False,
         "runs_planned":54,
         "runs_executed_by_planner":0,
