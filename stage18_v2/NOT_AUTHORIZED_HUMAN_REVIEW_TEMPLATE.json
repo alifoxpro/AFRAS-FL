@@ -18,5 +18,7 @@
   "all_required_code_dependency_hashes_reviewed": false,
   "orchestration_sha256": null,
   "exposure_analysis_protocol_sha256": null,
+  "primary_analysis_sha256": null,
+  "sample_exposure_analysis_sha256": null,
   "original_nine_zip_admission_scanner_sha256": null
 }
