@@ -53,3 +53,5 @@ jobs:
           if ($LASTEXITCODE -eq 0) { throw 'Corrupted ZIP erroneously accepted' }
           if (Test-Path -LiteralPath $bad) { throw 'Invalid data generated a false-pass receipt' }
           Write-Output 'CHAT13_WINDOWS_CORRUPTED_ARCHIVE_FAIL_CLOSED_PASS'
+          # Expected nonzero child exit code must not fail this negative-path QA job.
+          exit 0
