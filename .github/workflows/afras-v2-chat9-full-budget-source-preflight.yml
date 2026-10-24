@@ -1,0 +1,113 @@
+name: AFRAS V2 Chat9 locked full-budget 8-client source-only admission
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - .github/workflows/afras-v2-chat9-full-budget-source-preflight.yml
+
+permissions:
+  contents: read
+
+jobs:
+  full-budget-source-only-audit:
+    name: Real UCI eight-client FedAvg+FedProx 5x3 / ZERO target inference
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU runtime
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r stage17_v2/requirements-pilot.txt
+          python -m compileall -q stage18_v2 stage17_v2
+          python -c 'import ctypes.util; assert ctypes.util.find_library("archive")'
+          mkdir -p stage18_v2_chat9_full_budget "$RUNNER_TEMP/nbaiot_source_zips"
+      - name: Generate complete 54-run ledger without touching data
+        run: |
+          python stage18_v2/plan_and_run_54.py \
+            --plan-output stage18_v2_chat9_full_budget/exact_54_run_plan__NOT_EXECUTED.json
+      - name: Download direct public UCI original transport (not user-private ZIPs)
+        run: |
+          set -euxo pipefail
+          curl --fail --location --retry 3 --retry-delay 10 \
+            --speed-time 90 --speed-limit 1024 --max-time 1800 \
+            --output "$RUNNER_TEMP/uci_original.zip" \
+            'https://archive.ics.uci.edu/static/public/442/detection+of+iot+botnet+attacks+n+baiot.zip'
+      - name: Admit eight original source members; do not extract Ennio
+        run: |
+          set -euxo pipefail
+          python stage17_v2/prepare_uci_public_sources.py \
+            --outer-zip "$RUNNER_TEMP/uci_original.zip" \
+            --source-root "$RUNNER_TEMP/nbaiot_source_zips" \
+            --heldout Ennio_Doorbell \
+            --validation Samsung_SNH_1011_N_Webcam \
+            --record stage18_v2_chat9_full_budget/public_source_provenance.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("stage18_v2_chat9_full_budget/public_source_provenance.json")
+          x=json.loads(p.read_text())
+          assert x["outer_archive_sha256"]=="64929678b081d8e579a8d7c488cf11cc588403f282d5fb065b4156edbd55de9b"
+          assert x["heldout_member_contents_opened"] is False
+          assert len(x["device_files"])==8
+          assert not Path(__import__("os").environ["RUNNER_TEMP"],"nbaiot_source_zips","Ennio_Doorbell.zip").exists()
+          print("STAGE18_CHAT9_SOURCE_BYTES_ONLY_PASS",flush=True)
+          PY
+      - name: Locked full-budget FedAvg train 8 sources; no target source zip
+        run: |
+          set -euxo pipefail
+          python stage18_v2/lodo_engine.py --mode preflight \
+            --source-root "$RUNNER_TEMP/nbaiot_source_zips" \
+            --heldout Ennio_Doorbell --method FedAvg --seed 3107 \
+            --preflight-cap 30000 --preflight-rounds 5 --preflight-epochs 3 \
+            --output-dir stage18_v2_chat9_full_budget/FedAvg_source_only
+      - name: Locked full-budget FedProx train same 8 sources; no target source zip
+        run: |
+          set -euxo pipefail
+          python stage18_v2/lodo_engine.py --mode preflight \
+            --source-root "$RUNNER_TEMP/nbaiot_source_zips" \
+            --heldout Ennio_Doorbell --method FedProx --seed 3107 \
+            --preflight-cap 30000 --preflight-rounds 5 --preflight-epochs 3 \
+            --output-dir stage18_v2_chat9_full_budget/FedProx_source_only
+      - name: Evidence-only source training invariant audit
+        run: |
+          python - <<'PY'
+          import json, math
+          from pathlib import Path
+          root=Path("stage18_v2_chat9_full_budget")
+          ledger=json.loads((root/"exact_54_run_plan__NOT_EXECUTED.json").read_text())
+          assert ledger["runs_planned"]==54 and ledger["runs_executed_by_planner"]==0
+          for method in ("FedAvg","FedProx"):
+              dest=root/(method+"_source_only")
+              x=json.loads((dest/"run_receipt.json").read_text())
+              assert x["mode"]=="preflight" and x["source_clients"]==8
+              assert x["target_archive_opened"] is False
+              assert x["target_test_scored"] is False and x["target_results"] is None
+              assert x["no_target_features_or_labels_accessed"] is True
+              assert set(v["sample_size"] for v in x["sampling"].values())=={30000}
+              assert x["training"]["rounds"]==5 and x["training"]["local_epochs"]==3
+              assert len(x["training"]["round_trace"])==5
+              assert all(math.isfinite(r["mean_final_local_loss"])
+                         for r in x["training"]["round_trace"])
+              assert not list(dest.glob("*predictions*"))
+              print("REAL_FULL_BUDGET_SOURCE_ONLY_PASS",method,
+                    "seconds",x["training"]["seconds"],flush=True)
+          PY
+      - name: Store small receipts only; never publicize native observations or heldout predictions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: afras-v2-chat9-real-eight-source-full-budget-no-target-evidence
+          path: |
+            stage18_v2_chat9_full_budget/public_source_provenance.json
+            stage18_v2_chat9_full_budget/exact_54_run_plan__NOT_EXECUTED.json
+            stage18_v2_chat9_full_budget/FedAvg_source_only/run_receipt.json
+            stage18_v2_chat9_full_budget/FedProx_source_only/run_receipt.json
+          retention-days: 10
+          if-no-files-found: warn
