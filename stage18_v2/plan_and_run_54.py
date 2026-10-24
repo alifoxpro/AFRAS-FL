@@ -83,13 +83,26 @@ def create_plan(protocol:Path=engine.CORE, manifest:Path|None=None):
     return result
 
 
-def verify_completed(run_folder:Path, expected:dict):
+def verify_completed(run_folder:Path, expected:dict, protocol:Path=engine.CORE, approved_gate:dict|None=None):
     receipt_path=run_folder/"run_receipt.json"
     evidence_path=run_folder/"independent_replay.json"
     if not receipt_path.is_file() or not evidence_path.is_file():
         return False
     rec=json.loads(receipt_path.read_text(encoding="utf8"))
     evidence=json.loads(evidence_path.read_text(encoding="utf8"))
+    # A prior run is NOT resumable if it used superseded engine, protocol,
+    # independent-replay code or an approval different from the current review.
+    # This check is BEFORE looking at any cached predictions/checkpoint.
+    if (rec.get("protocol_sha256")!=engine.file_sha256(protocol)
+            or rec.get("engine_sha256")!=engine.file_sha256(Path(engine.__file__))
+            or evidence.get("engine_sha256")!=rec.get("engine_sha256")
+            or evidence.get("protocol_sha256")!=rec.get("protocol_sha256")
+            or rec.get("code_hashes_at_gate",{}).get("replay_sha256")
+                !=engine.file_sha256(Path(replay.__file__))
+            or rec.get("execution_environment",{}).get("requirements_sha256")
+                !=engine.file_sha256(ROOT/"stage17_v2"/"requirements-pilot.txt")
+            or (approved_gate is not None and rec.get("authorization_receipt")!=approved_gate)):
+        raise ValueError("Existing run uses a different code/protocol/approval revision")
     if (rec.get("heldout_device")!=expected["heldout_device"]
         or rec.get("model")!=expected["method"]
         or rec.get("seed")!=expected["seed"]
@@ -143,7 +156,7 @@ def execute_tasks(args,plan):
     for task in plan["tasks"]:
         folder=root/task["task_id"]
         if folder.exists():
-            if verify_completed(folder,task):
+            if verify_completed(folder,task,args.protocol,gate):
                 print("RESUME_VERIFIED_COMPLETE",task["task_id"],flush=True)
                 completed+=1
                 continue
@@ -168,7 +181,7 @@ def execute_tasks(args,plan):
             "--output",str(folder/"independent_replay.json")
         ]
         subprocess.run(independent,check=True)
-        if not verify_completed(folder,task):
+        if not verify_completed(folder,task,args.protocol,gate):
             raise RuntimeError("Unverified post-run evidence: "+task["task_id"])
         completed+=1
         print("VERIFIED_CONFIRMATORY_TASK",completed,"/",len(plan["tasks"]),task["task_id"],flush=True)
