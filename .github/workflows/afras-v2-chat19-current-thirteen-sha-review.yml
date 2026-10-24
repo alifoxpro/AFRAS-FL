@@ -5,6 +5,7 @@ on:
       - research/afras-v2-stage17-source-only-pilot-20261024
     paths:
       - .github/workflows/afras-v2-chat19-current-thirteen-sha-review.yml
+      - stage18_v2/verify_original_nine_zip_bytes.py
 permissions:
   contents: read
 jobs:
