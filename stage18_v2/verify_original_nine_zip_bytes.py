@@ -76,7 +76,7 @@ def validate_original_source_manifest(source_root:Path,manifest_path:Path):
         "heldout_model_predictions_generated":False,
         "human_scientific_approval_created":False,
         "files":verified,
-        "limitations":"Byte identity matches earlier user-local archive checks. Public UCI source-member comparisons were separately audited. Does not verify label semantics or grant model-testing authorization."
+        "limitations":("Public UCI 25 native members were repackaged into new ZIP wrappers. Matching the candidate SHA is NOT a fresh SHA match of the user Library original wrappers. Scientific source review is required." if repackaged else "Byte identity matches earlier user-local archive checks. Public UCI source-member comparisons were separately audited. Does not verify label semantics or grant model-testing authorization.")
     }
 
 
