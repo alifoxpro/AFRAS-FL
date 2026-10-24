@@ -1,0 +1,72 @@
+name: AFRAS V2 Chat18 compare 23 prior ORIGINAL local members with real official UCI hashes
+on:
+  push:
+    branches:
+      - research/afras-v2-stage17-source-only-pilot-20261024
+    paths:
+      - .github/workflows/afras-v2-chat18-local-23-vs-uci-member-sha.yml
+permissions:
+  contents: read
+  actions: read
+jobs:
+  independent-original-member-crosscheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover real 25 original member SHA receipt from prior successful UCI download
+        uses: actions/download-artifact@v4
+        with:
+          name: afras-chat18-uci-25-native-member-rebuild-versus-original-nine-zip-audit
+          run-id: 40094660919
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: chat18_provenance
+      - name: Cross-check 23 user-local native original member digests against freshly downloaded UCI members
+        run: |
+          set -euo pipefail
+          mkdir -p chat18_crosscheck
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("chat18_provenance/uci_original_native_member_comparison_receipt.json").read_text())
+          j=json.loads(Path("stage18_v2/HISTORICAL_LOCAL_ORIGINAL_23_MEMBER_SHA256_CHAT6.json").read_text())
+          assert r["downloaded_original_transport_sha256"]=="64929678b081d8e579a8d7c488cf11cc588403f282d5fb065b4156edbd55de9b"
+          assert r["official_native_member_count"]==25 and r["historical_outer_zip_exact_matches"]==0
+          official={p["name"]:p for d in r["reconstructed_device_reports"]
+                    for p in d["native_members_from_official_transport"]}
+          prior=j["entries"]
+          assert len(official)==25 and len(prior)==23
+          unique=set()
+          for e in prior:
+              member=e["native_member"]
+              assert member not in unique
+              unique.add(member)
+              now=official[member]
+              assert e["prior_local_original_member_sha256"]==now["source_member_sha256"],member
+              assert e["member_size_bytes"]==now["source_member_bytes"],member
+          missing=sorted(set(official)-unique)
+          assert missing==["Ennio_Doorbell/benign_traffic.csv","Ennio_Doorbell/gafgyt_attacks.rar"]
+          out={
+              "status":"INDEPENDENT_CROSSCHECK_HISTORICAL_23_ORIGINAL_LOCAL_MEMBERS_VS_CURRENT_OFFICIAL_UCI_PASS",
+              "original_local_members_comparable":23,
+              "matched_actual_bytes_sha256":23,
+              "actual_official_members_hashed":25,
+              "two_Ennio_historical_member_local_hashes_unavailable":missing,
+              "exact_historical_original_nine_outer_ZIP_sha_matches_on_new_wrappers":0,
+              "outer_wrapper_mismatch_is_not_native_member_content_mismatch":True,
+              "current_user_Library_original_ZIP_byte_sha256_rechecked":False,
+              "human_research_approval_issued":False,
+              "native_model_test_predictions":0,
+              "official_existing_verified_run_id":40094660919,
+          }
+          Path("chat18_crosscheck/CHAT18_PUBLIC_UCI_VS_USER_ORIGINAL_23_MEMBER_SHA256.json").write_text(
+              json.dumps(out,indent=2)+"\n")
+          print("CHAT18_REAL_23_OF_23_USER_LOCAL_ORIGINAL_MEMBERS_MATCH_OFFICIAL_UCI_PASS",
+                "TWO_ENNIO_PENDING","ZERO_HELDOUT_PREDICTIONS",flush=True)
+          PY
+      - name: Upload actual reproducible data-provenance cross-check receipt only
+        uses: actions/upload-artifact@v4
+        with:
+          name: afras-v2-chat18-23-local-vs-25-official-byte-provenance-evidence
+          path: chat18_crosscheck/CHAT18_PUBLIC_UCI_VS_USER_ORIGINAL_23_MEMBER_SHA256.json
+          retention-days: 15
