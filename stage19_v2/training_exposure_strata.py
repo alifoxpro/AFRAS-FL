@@ -167,6 +167,7 @@ def main():
                   "original_nine_zip_admission_scanner_sha256",
                   "primary_analysis_sha256",
                   "sample_exposure_analysis_sha256",
+                  "full_source_exposure_analysis_sha256",
                   "source_manifest_sha256"):
         if approved.get(field)!=plan.get(field):
             raise PermissionError("Wrong authorization revision")
