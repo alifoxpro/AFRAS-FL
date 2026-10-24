@@ -1,0 +1,99 @@
+{
+  "protocol_id": "AFRAS_V2_STAGE16_FROZEN_CORE_V1_20261024",
+  "status": "CORE_METHODS_AND_ANALYSIS_SPECIFICATION_FROZEN_PRE_RESULT",
+  "full_execution_authorized": false,
+  "reason_execution_not_authorized": "Eight-client native LODO driver and independent metric replay not yet code-verified; no target predictions allowed",
+  "target_journal": "MDPI AI",
+  "novelty_status": "CONDITIONAL_GO_TO_TEST_EVALUATION_QUESTION_NO_NEW_FUZZY_ALGORITHM",
+  "data": {
+    "original": "UCI N-BaIoT DOI 10.24432/C5RC8J",
+    "native_feature_count": 115,
+    "native_class_count": 11,
+    "device_names": [
+      "Ennio_Doorbell",
+      "Samsung_SNH_1011_N_Webcam",
+      "Provision_PT_838_Security_Camera",
+      "Ecobee_Thermostat",
+      "Provision_PT_737E_Security_Camera",
+      "Danmini_Doorbell",
+      "Philips_B120N10_Baby_Monitor",
+      "SimpleHome_XCS7_1003_WHT_Security_Camera",
+      "SimpleHome_XCS7_1002_WHT_Security_Camera"
+    ],
+    "local_archives": "9/9 local SHA matches; 25/25 original CSV/RAR member bytes match direct UCI public download",
+    "correction": "9 benign original raw-byte CSV SHA sidecar supersedes invalid previous Stage13 header-digest metadata; original SQLite fields not mutated",
+    "test_policy": "All original native rows of each heldout device, no target downsampling/deduplication; original class distribution intact"
+  },
+  "folds": {
+    "count": 9,
+    "source_clients": 8,
+    "target_clients": 1,
+    "inv": "Target device never used in training, preprocessing, model selection, class weighting, thresholds or early stopping"
+  },
+  "modeling": {
+    "task": "binary benign vs attack (source path labels)",
+    "architecture": [
+      115,
+      64,
+      32,
+      1
+    ],
+    "nonlinearity": "ReLU",
+    "output": "logit",
+    "threshold": 0.5,
+    "transform": "asinh then per-feature train-eight-sources-only mean and SD (zero SD ->1)",
+    "baseline_methods": [
+      "FedAvg",
+      "FedProx"
+    ],
+    "fedprox_mu": 0.01,
+    "aggregation": "sample count weighted",
+    "source_uniform_sample_per_device_without_replacement": 30000,
+    "sample_rng": "numpy.random.default_rng(seed + canonical_device_index*111), choose 30000 lowest random priority values",
+    "source_sample_bank": "Cache per-device-per-seed subsamples and for each fold load only eight source device shards, never target shard",
+    "class_weight": "per source client negative/positive counts from sampled source rows only",
+    "optimizer": "AdamW",
+    "lr": 0.001,
+    "weight_decay": 0,
+    "local_batch_size": 128,
+    "communication_rounds": 5,
+    "local_epochs_per_round": 3,
+    "random_seeds": [
+      3107,
+      3108,
+      3109
+    ],
+    "checkpoint_selection": "Last predefined round, not best target result",
+    "no_target_threshold_tuning": true
+  },
+  "analyses": {
+    "primary_endpoint": "Equal-device-weighted nine-device mean binary balanced accuracy",
+    "primary_method_contrast": "FedProx minus FedAvg device-level paired BA, after within-device seed aggregation",
+    "secondary": [
+      "per-device native FPR",
+      "per-device attack recall",
+      "worst-device BA",
+      "attack-class recurring/unseen recall within eligible device/class cells",
+      "network/CPU costs"
+    ],
+    "exact_feature_groups": "115-vector source device union vs heldout equality as ANALYSIS-ONLY variable",
+    "attack_eligible_both": 42,
+    "attack_recurrent_only": 38,
+    "attack_absent": 10,
+    "recurrent_benign_rows": 6,
+    "nonestimable": "NON_ESTIMABLE; do not impute 0",
+    "unit_of_uncertainty": "nine target devices, not individual rows or three seeds",
+    "after_test_exploratory": "Any new analyses or tests post target inspection must be disclosed as exploratory"
+  },
+  "evidence_before_freeze": {
+    "source_only_native_scan_8_devices_rows": 6707106,
+    "uniform_source_samples_training": 210000,
+    "uniform_source_samples_validation": 30000,
+    "peak_rss_kb": 987956,
+    "sgd_single_round_single_epoch_wall_seconds": 8.035,
+    "all_eight_source_device_benign_support": true,
+    "source_tester": "Samsung prior pilot used for optimizer feasibility, so this is post-exploratory, not nine historical lockboxes",
+    "no_confirmatory_results_exist": true
+  },
+  "stop_gate": "Do not open/score any outer target for model evaluation before fixed eight-client engine and row-level independent metric replay have been audited, and code+environment SHA recorded."
+}
