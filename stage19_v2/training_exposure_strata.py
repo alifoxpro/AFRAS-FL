@@ -114,6 +114,7 @@ def analyze_all(plan,root,approved):
             raise FileNotFoundError("Not all 54 independent replay results exist")
     out=[]
     parity={}
+    training_parity={}
     for task in tasks:
         folder=root/task["task_id"]
         receipt=json.loads((folder/"run_receipt.json").read_text())
@@ -129,6 +130,11 @@ def analyze_all(plan,root,approved):
         result.update({"task_id":task["task_id"],"method":task["method"],
                        "seed":task["seed"],"unique_source_training_vectors":len(vectors)})
         key=(task["heldout_device"],task["seed"])
+        train_identity=(verified["source_sampling_sha256"],
+                        verified["source_transform_sha256"])
+        if key in training_parity and training_parity[key]!=train_identity:
+            raise ValueError("FedAvg versus FedProx source-sample/normalization mismatch")
+        training_parity[key]=train_identity
         signature={c:(result["classwise"][c]["actually_trained_exposed_rows"],
                       result["classwise"][c]["not_training_exposed_rows"])
                    for c in LABELS}
