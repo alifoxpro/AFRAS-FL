@@ -37,6 +37,8 @@ The normal confirmatory mode **always rejects** missing, malformed or stale auth
   "native_loader_sha256": "<actual reviewed stage17_v2/source_only_pilot.py SHA-256>",
   "requirements_sha256": "<actual requirements-pilot.txt SHA-256>",
   "native_inventory_sha256": "<actual Stage16 analysis-only inventory SHA-256>",
+  "orchestration_sha256": "<actual stage18_v2/plan_and_run_54.py SHA-256>",
+  "exposure_analysis_protocol_sha256": "<actual Stage16 pre-result exposure addendum SHA-256>",
   "source_manifest_sha256": "<actual original nine-local-ZIP manifest SHA-256>"
 }
 ```
