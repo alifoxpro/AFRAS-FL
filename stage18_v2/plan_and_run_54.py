@@ -56,7 +56,7 @@ def locked_tasks(protocol=engine.CORE):
     return tasks
 
 
-def create_plan(protocol:Path, manifest:Path|None=None):
+def create_plan(protocol:Path=engine.CORE, manifest:Path|None=None):
     tasks=locked_tasks(protocol)
     result={
         "status":"PLAN_ONLY__NO_TARGET_OPENED",
