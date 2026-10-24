@@ -68,6 +68,8 @@ class FrozenPlanTests(unittest.TestCase):
                 "human_review_complete":True,
                 "independent_data_admission_complete":True,
                 "no_target_results_reviewed":True,
+                "original_nine_zip_admission_scanner_sha256":engine.file_sha256(
+                    engine.ROOT/"stage18_v2"/"verify_original_nine_zip_bytes.py"),
                 "source_manifest_sha256":"0"*64,
             }),encoding="utf8")
             args=argparse.Namespace(
@@ -123,6 +125,66 @@ class FrozenPlanTests(unittest.TestCase):
             }),encoding="utf8")
             with self.assertRaisesRegex(ValueError,"different code/protocol/approval"):
                 plan.verify_completed(folder,task)
+
+    def _nine_original_stub_archives(self,root):
+        import hashlib
+        original=[]
+        for idx,device in enumerate(engine.native.DEVICES):
+            payload=(device+"-synthetic-original-ZIP-bytes").encode("utf8")
+            (root/(device+".zip")).write_bytes(payload)
+            original.append({
+                "device":device,"filename":device+".zip",
+                "local_sha256":hashlib.sha256(payload).hexdigest(),
+                "local_bytes":len(payload)
+            })
+        manifest=root/"original_manifest.json"
+        manifest.write_text(json.dumps({
+            "manifest_schema":"AFRAS_V2_ORIGINAL_NINE_DEVICE_ZIP_EXPECTED_BYTES_V1",
+            "local_archives":original
+        }))
+        return manifest
+
+    def test_fresh_original_byte_scan_fails_before_any_target_execution(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root=Path(scratch)
+            manifest=self._nine_original_stub_archives(root)
+            # Corruption AFTER issuing manifest: a SHA mismatch, never acceptable.
+            (root/(engine.native.DEVICES[-1]+".zip")).write_bytes(
+                b"CORRUPT-SYNTHETIC-ORIGINAL-ZIP")
+            args=argparse.Namespace(
+                approval_gate=root/"fictional_approval.json",
+                source_manifest=manifest,
+                protocol=engine.CORE,
+                source_root=root,output_root=root/"runs")
+            fake={"source_manifest_sha256":engine.file_sha256(manifest)}
+            with patch.object(engine,"assert_approval",return_value=(fake,{})), \
+                 patch.object(plan.subprocess,"run",
+                              side_effect=AssertionError("Must not execute any FL")):
+                with self.assertRaisesRegex(ValueError,"ZIP byte size differs|ZIP SHA-256 mismatch"):
+                    plan.execute_tasks(args,plan.create_plan())
+            self.assertFalse(args.output_root.exists())
+
+    def test_fresh_original_byte_gate_succeeds_before_first_fit_is_launched(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root=Path(scratch)
+            manifest=self._nine_original_stub_archives(root)
+            args=argparse.Namespace(
+                approval_gate=root/"fictional_approval.json",
+                source_manifest=manifest,
+                protocol=engine.CORE,
+                source_root=root,output_root=root/"runs")
+            fake={"source_manifest_sha256":engine.file_sha256(manifest)}
+            with patch.object(engine,"assert_approval",return_value=(fake,{})), \
+                 patch.object(plan.subprocess,"run",
+                              side_effect=RuntimeError("INTENTIONAL_ABORT_BEFORE_TARGET")):
+                with self.assertRaisesRegex(RuntimeError,"INTENTIONAL_ABORT_BEFORE_TARGET"):
+                    plan.execute_tasks(args,plan.create_plan())
+            receipt=args.output_root/"ORIGINAL_NINE_ZIP_BYTE_ADMISSION.json"
+            self.assertTrue(receipt.exists())
+            obj=json.loads(receipt.read_text())
+            self.assertEqual(obj["original_zips_verified"],9)
+            self.assertFalse(obj["heldout_model_predictions_generated"])
+            self.assertFalse(obj["human_scientific_approval_created"])
 
     def test_existing_partial_run_not_skipped(self):
         task=plan.locked_tasks()[0]
